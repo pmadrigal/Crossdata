@@ -765,9 +765,11 @@ getWindow returns [WindowSelect ws]:
 getTimeUnit returns [TimeUnit unit]:
     ( T_SEC {$unit=TimeUnit.SECONDS;}
     | T_SECS {$unit=TimeUnit.SECONDS;}
+    | T_SECOND {$unit=TimeUnit.SECONDS;}
     | T_SECONDS {$unit=TimeUnit.SECONDS;}
     | T_MIN {$unit=TimeUnit.MINUTES;}
     | T_MINS {$unit=TimeUnit.MINUTES;}
+    | T_MINUTE {$unit=TimeUnit.MINUTES;}
     | T_MINUTES {$unit=TimeUnit.MINUTES;}
     | T_HOUR {$unit=TimeUnit.HOURS;}
     | T_HOURS {$unit=TimeUnit.HOURS;}
@@ -777,8 +779,9 @@ getTimeUnit returns [TimeUnit unit]:
 ;
 
 getSelectClause[Map fieldsAliasesMap] returns [SelectionClause sc]:
-    scc=getSelectionCount {$sc = scc;}
-    | scl=getSelectionList[fieldsAliasesMap] {$sc = scl;}
+    //scc=getSelectionCount {$sc = scc;}
+    //| 
+    scl=getSelectionList[fieldsAliasesMap] {$sc = scl;}
 ;
 
 getSelectionCount returns [SelectionCount scc]

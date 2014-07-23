@@ -74,6 +74,13 @@
 		<antlr.version>3.5.1</antlr.version>
 	</properties>
 
+	<repositories>
+		<repository>
+			<id>sonatype</id>
+			<url>https://oss.sonatype.org/content/repositories/snapshots/</url>
+		</repository>
+	</repositories>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.testng</groupId>
@@ -170,16 +177,11 @@
 			<version>2.0</version>
 			<scope>test</scope>
 		</dependency>
-
 		<dependency>
 			<groupId>com.stratio.streaming</groupId>
 			<artifactId>streaming-api</artifactId>
 			<version>0.3.3</version>
 		</dependency>
-		<!--dependency> <groupId>org.apache.spark</groupId> <artifactId>spark-streaming_2.10</artifactId> 
-			<version>0.9.1</version> </dependency> <dependency> <groupId>org.apache.spark</groupId> 
-			<artifactId>spark-streaming-kafka_2.10</artifactId> <version>0.9.1</version> 
-			</dependency -->
 	</dependencies>
 	<build>
 		<plugins>

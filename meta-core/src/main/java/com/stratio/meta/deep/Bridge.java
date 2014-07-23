@@ -16,6 +16,18 @@
 
 package com.stratio.meta.deep;
 
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+
+import org.apache.log4j.Logger;
+import org.apache.spark.api.java.JavaPairRDD;
+import org.apache.spark.api.java.JavaRDD;
+
+import scala.Tuple2;
+
 import com.datastax.driver.core.Session;
 import com.stratio.deep.config.DeepJobConfigFactory;
 import com.stratio.deep.config.ICassandraDeepJobConfig;
@@ -33,9 +45,11 @@ import com.stratio.meta.core.engine.EngineConfig;
 import com.stratio.meta.core.statements.MetaStatement;
 import com.stratio.meta.core.statements.SelectStatement;
 import com.stratio.meta.core.structures.GroupBy;
+import com.stratio.meta.core.structures.GroupByFunction;
 import com.stratio.meta.core.structures.Ordering;
 import com.stratio.meta.core.structures.Relation;
 import com.stratio.meta.core.structures.SelectionClause;
+import com.stratio.meta.core.structures.SelectionCount;
 import com.stratio.meta.core.structures.SelectionList;
 import com.stratio.meta.core.structures.Term;
 import com.stratio.meta.deep.comparators.DeepComparator;
@@ -49,23 +63,12 @@ import com.stratio.meta.deep.functions.LessEqualThan;
 import com.stratio.meta.deep.functions.LessThan;
 import com.stratio.meta.deep.functions.MapKeyForJoin;
 import com.stratio.meta.deep.functions.NotEquals;
+import com.stratio.meta.deep.transfer.ColumnInfo;
 import com.stratio.meta.deep.transformation.AverageAggregatorMapping;
 import com.stratio.meta.deep.transformation.GroupByAggregation;
 import com.stratio.meta.deep.transformation.GroupByMapping;
 import com.stratio.meta.deep.transformation.KeyRemover;
 import com.stratio.meta.deep.utils.DeepUtils;
-
-import org.apache.log4j.Logger;
-import org.apache.spark.api.java.JavaPairRDD;
-import org.apache.spark.api.java.JavaRDD;
-
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-
-import scala.Tuple2;
 
 /**
  * Class that performs as a Bridge between Meta and Stratio Deep.
@@ -147,18 +150,20 @@ public class Bridge {
       }
     }
 
-    List<String> cols = new ArrayList<>();
-    if(ss.getSelectionClause() instanceof SelectionList){
+    List<ColumnInfo> cols = new ArrayList<>();
+    if (ss.getSelectionClause() instanceof SelectionList) {
       cols = DeepUtils.retrieveSelectors(((SelectionList) ss.getSelectionClause()).getSelection());
     } else { // SelectionCount
-      cols.add("COUNT");
+      cols.add(new ColumnInfo(ss.getTableName(), "*", GroupByFunction.COUNT));
     }
 
     // Group by clause
-    if (ss.isGroupInc()) {
+    if (ss.isGroupInc() && ss.getSelectionClause() instanceof SelectionList) {
       rdd = doGroupBy(rdd, ss.getGroup(), (SelectionList) ss.getSelectionClause());
     } else if (ss.getSelectionClause().containsFunctions()) {
       rdd = doGroupBy(rdd, null, (SelectionList) ss.getSelectionClause());
+    } else if (ss.getSelectionClause() instanceof SelectionCount) {
+      rdd = doGroupBy(rdd, ss.getGroup(), null);
     }
 
     MetaResultSet resultSet =
@@ -183,7 +188,6 @@ public class Bridge {
 
     // Retrieve RDDs and selected columns from children
     List<JavaRDD<Cells>> children = new ArrayList<>();
-    List<String> selectedCols = new ArrayList<>();
     for (Result child : resultsFromChildren) {
       QueryResult qResult = (QueryResult) child;
       MetaResultSet crset = (MetaResultSet) qResult.getResultSet();
@@ -195,13 +199,11 @@ public class Bridge {
       children.add(rdd);
     }
 
-    // Retrieve selected columns without tablename
-    for (String id: ss.getSelectionClause().getIds(true)) {
-      if (id.contains(".")) {
-        selectedCols.add(id.split("\\.")[1]);
-      } else {
-        selectedCols.add(id);
-      }
+    List<ColumnInfo> cols = new ArrayList<>();
+    if (ss.getSelectionClause() instanceof SelectionList) {
+      cols = DeepUtils.retrieveSelectors(((SelectionList) ss.getSelectionClause()).getSelection());
+    } else { // SelectionCount
+      cols.add(new ColumnInfo(ss.getTableName(), "*", GroupByFunction.COUNT));
     }
 
     // JOIN
@@ -213,30 +215,32 @@ public class Bridge {
     JavaRDD<Cells> rddTableLeft = children.get(0);
     JavaRDD<Cells> rddTableRight = children.get(1);
 
-    JavaPairRDD<Cells, Cells> rddLeft = rddTableLeft.mapToPair(new MapKeyForJoin(keyTableLeft));
-    JavaPairRDD<Cells, Cells> rddRight = rddTableRight.mapToPair(new MapKeyForJoin(keyTableRight));
+    JavaPairRDD<Cells, Cells> rddLeft =
+        rddTableLeft.mapToPair(new MapKeyForJoin<Cells>(keyTableLeft));
+    JavaPairRDD<Cells, Cells> rddRight =
+        rddTableRight.mapToPair(new MapKeyForJoin<Cells>(keyTableRight));
 
     JavaPairRDD<Cells, Tuple2<Cells, Cells>> joinRDD = rddLeft.join(rddRight);
 
-    JavaRDD<Cells> joinedResult = joinRDD.map(new JoinCells(keyTableLeft));
+    JavaRDD<Cells> joinedResult = joinRDD.map(new JoinCells<Cells>());
 
     JavaRDD<Cells> result = joinedResult;
 
-    if(ss.isGroupInc()){
-      JavaRDD<Cells> groupedResult = doGroupBy(result, ss.getGroup(), (SelectionList) ss.getSelectionClause());
-      result = groupedResult;
+    // Group by clause
+    if (ss.isGroupInc()) {
+      result = doGroupBy(result, ss.getGroup(), (SelectionList) ss.getSelectionClause());
+    } else if (ss.getSelectionClause().containsFunctions()) {
+      result = doGroupBy(result, null, (SelectionList) ss.getSelectionClause());
     }
 
     // MetaResultSet
     MetaResultSet resultSet =
-        (MetaResultSet) returnResult(result, true, false, selectedCols, ss.getLimit(),
-            ss.getOrder());
+        (MetaResultSet) returnResult(result, true, false, cols, ss.getLimit(), ss.getOrder());
 
     return replaceWithAliases(ss.getFieldsAliasesMap(), resultSet);
   }
 
-  private ResultSet replaceWithAliases(Map<String, String> fieldsAliasesMap,
-                                       MetaResultSet resultSet) {
+  private ResultSet replaceWithAliases(Map<String, String> fieldsAliasesMap, MetaResultSet resultSet) {
 
     List<ColumnMetadata> metadata = resultSet.getColumnMetadata();
 
@@ -312,7 +316,7 @@ public class Bridge {
    * @return ResultSet containing the result of built.
    */
   private ResultSet returnResult(JavaRDD<Cells> rdd, boolean isRoot, boolean isCount,
-      List<String> selectedCols, int limit, List<Ordering> orderings) {
+      List<ColumnInfo> selectedCols, int limit, List<Ordering> orderings) {
     if (isRoot) {
       if (isCount) {
         return DeepUtils.buildCountResult(rdd);
@@ -410,30 +414,37 @@ public class Bridge {
   private JavaRDD<Cells> doGroupBy(JavaRDD<Cells> rdd, List<GroupBy> groupByClause,
       SelectionList selectionClause) {
 
-    final List<String> aggregationCols =
-        DeepUtils.retrieveSelectorAggegationFunctions(selectionClause.getSelection());
+    final List<ColumnInfo> aggregationCols;
+    if (selectionClause != null) {
+      aggregationCols =
+          DeepUtils.retrieveSelectorAggegationFunctions(selectionClause.getSelection());
+    } else {
+      aggregationCols = null;
+    }
 
     // Mapping the rdd to execute the group by clause
     JavaPairRDD<Cells, Cells> groupedRdd =
         rdd.mapToPair(new GroupByMapping(aggregationCols, groupByClause));
 
-    JavaPairRDD<Cells, Cells> aggregatedRdd = applyGroupByAggregations(groupedRdd, aggregationCols);
+    if (selectionClause != null) {
+      groupedRdd = applyGroupByAggregations(groupedRdd, aggregationCols);
+    }
 
-    JavaRDD<Cells> map = aggregatedRdd.map(new KeyRemover());
+    JavaRDD<Cells> map = groupedRdd.map(new KeyRemover());
 
     return map;
   }
 
   private JavaPairRDD<Cells, Cells> applyGroupByAggregations(JavaPairRDD<Cells, Cells> groupedRdd,
-      List<String> aggregationCols) {
+      List<ColumnInfo> aggregationCols) {
 
     JavaPairRDD<Cells, Cells> aggregatedRdd =
         groupedRdd.reduceByKey(new GroupByAggregation(aggregationCols));
 
     // Looking for the average aggregator to complete it
-    for (String aggregation : aggregationCols) {
+    for (ColumnInfo aggregation : aggregationCols) {
 
-      if (aggregation.toLowerCase().startsWith("avg(")) {
+      if (GroupByFunction.AVG == aggregation.getAggregationFunction()) {
         aggregatedRdd = aggregatedRdd.mapValues(new AverageAggregatorMapping(aggregation));
       }
     }

@@ -114,6 +114,7 @@ public abstract class MetaStatement {
    */
   protected Result validateKeyspaceAndTable(MetadataManager metadata, String effectiveKeyspace,
       String tableName) {
+
     Result result = QueryResult.createSuccessQueryResult();
     // Get the effective keyspace based on the user specification during the create
     // sentence, or taking the keyspace in use in the user session.
@@ -124,7 +125,9 @@ public abstract class MetaStatement {
           Result
               .createValidationErrorResult("Target keyspace missing or no keyspace has been selected.");
     } else {
+
       KeyspaceMetadata ksMetadata = metadata.getKeyspaceMetadata(effectiveKeyspace);
+
       if (ksMetadata == null) {
         result =
             Result
@@ -132,17 +135,19 @@ public abstract class MetaStatement {
       } else {
         com.stratio.meta.common.metadata.structures.TableMetadata tableMetadata =
             metadata.getTableGenericMetadata(effectiveKeyspace, tableName);
+
         if (tableMetadata == null) {
           result =
-              Result.createValidationErrorResult("Table " + tableName + " does not exist in "
-                                                 + effectiveKeyspace + ".");
+              Result.createValidationErrorResult("Table '" + tableName + "' does not exist in "
+                  + effectiveKeyspace + ".");
         } else {
-          if(tableMetadata.getType() == TableType.EPHEMERAL){
+          if (tableMetadata.getType() == TableType.EPHEMERAL) {
             result = CommandResult.createCommandResult("streaming");
           }
         }
       }
     }
+
     return result;
   }
 
@@ -154,7 +159,8 @@ public abstract class MetaStatement {
     this.keyspace = keyspace;
     this.keyspaceInc = true;
   }
-  public String getKeyspace(){
+
+  public String getKeyspace() {
     return keyspace;
   }
 
