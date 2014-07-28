@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>com.stratio.meta</groupId>
 		<artifactId>meta-parent</artifactId>
-		<version>0.0.6-SNAPSHOT</version>
+		<version>0.0.6</version>
 	</parent>
 	<artifactId>meta-rest</artifactId>
 	<name>Stratio META rest server</name>
@@ -87,12 +87,12 @@
 		<dependency>
 			<groupId>com.stratio.meta</groupId>
 			<artifactId>meta-driver</artifactId>
-			<version>0.0.6-SNAPSHOT</version>
+			<version>${project.parent.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>com.stratio.meta</groupId>
 			<artifactId>meta-common</artifactId>
-			<version>0.0.6-SNAPSHOT</version>
+			<version>${project.parent.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>
@@ -107,7 +107,7 @@
 		<dependency>
 			<groupId>com.stratio.meta</groupId>
 			<artifactId>meta-core</artifactId>
-			<version>0.0.6-SNAPSHOT</version>
+			<version>${project.parent.version}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.glassfish.jersey.test-framework</groupId>
