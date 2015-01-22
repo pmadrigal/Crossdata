@@ -16,8 +16,23 @@
  * under the License.
  */
 
-package com.stratio.crossdata.core.query;
+package com.stratio.crossdata.sh.help;
 
-public interface ExecutedQuery extends InProgressQuery {
+import static org.testng.Assert.assertTrue;
 
+import org.testng.annotations.Test;
+
+public class HelpEntryTest {
+    @Test
+    public void testToString() throws Exception {
+        HelpEntry helpEntry = new HelpEntry();
+        helpEntry.setHelp("Comment");
+        helpEntry.setEntry("Test");
+        String result = helpEntry.toString();
+        String expected = "Test" + System.lineSeparator() + "Comment";
+        assertTrue(result.equalsIgnoreCase(expected),
+                "Result:   " + result +
+                System.lineSeparator() +
+                "Expected: " + expected);
+    }
 }

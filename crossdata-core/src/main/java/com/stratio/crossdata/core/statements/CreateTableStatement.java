@@ -38,21 +38,17 @@ import com.stratio.crossdata.core.validator.requirements.ValidationTypes;
 /**
  * Class that models a {@code CREATE TABLE} statement of the CROSSDATA language.
  */
-public class CreateTableStatement extends MetadataStatement implements ITableStatement {
+public class CreateTableStatement extends AbstractMetadataTableStatement implements ITableStatement {
 
     private TableType tableType = TableType.DATABASE;
 
-    /**
-     * The name of the target table.
-     */
-    private TableName tableName;
 
     private ClusterName clusterName;
 
     /**
      * A map with the name of the columns in the table and the associated data type.
      */
-    private HashMap<ColumnName, ColumnType> columnsWithType = new LinkedHashMap<>();
+    private Map<ColumnName, ColumnType> columnsWithType = new LinkedHashMap<>();
 
     /**
      * The list of columns that are part of the primary key.
@@ -84,6 +80,7 @@ public class CreateTableStatement extends MetadataStatement implements ITableSta
      *
      * @param tableType    TABLE type {@link com.stratio.crossdata.common.metadata.structures.TableType}.
      * @param tableName    The name of the table.
+     * @param clusterName  The cluster name that correspond with the table.
      * @param columns      A map with the name of the columns in the table and the associated data type.
      * @param partitionKey The list of columns that are part of the primary key.
      * @param clusterKey   The list of columns that are part of the clustering key.
@@ -93,7 +90,7 @@ public class CreateTableStatement extends MetadataStatement implements ITableSta
             LinkedHashSet<ColumnName> partitionKey, LinkedHashSet<ColumnName> clusterKey) {
         this.command = false;
         this.tableType = tableType;
-        this.tableName = tableName;
+        this.tableStatement.setTableName(tableName);
         this.clusterName = clusterName;
         this.columnsWithType = columns;
         this.partitionKey = partitionKey;
@@ -111,6 +108,7 @@ public class CreateTableStatement extends MetadataStatement implements ITableSta
      *
      * @param tableName    The name of the table.
      * @param columns      A map with the name of the columns in the table and the associated data type.
+     * @param clusterName  The cluster name that correspond with the table.
      * @param partitionKey The list of columns that are part of the primary key.
      * @param clusterKey   The list of columns that are part of the clustering key.
      */
@@ -120,30 +118,35 @@ public class CreateTableStatement extends MetadataStatement implements ITableSta
         this(TableType.DATABASE, tableName, clusterName, columns, partitionKey, clusterKey);
     }
 
+    /**
+     * Get the partition key.
+     * @return The set with {@link com.stratio.crossdata.common.data.ColumnName} with the partition key.
+     */
     public Set<ColumnName> getPartitionKey() {
         return partitionKey;
     }
 
+    /**
+     * Get the cluster key.
+     * @return The set with {@link com.stratio.crossdata.common.data.ColumnName} with the cluster key.
+     */
     public Set<ColumnName> getClusterKey() {
         return clusterKey;
     }
 
-    public TableType getTableType() {
-        return tableType;
-    }
-
-    public HashMap<ColumnName, ColumnType> getColumnsWithTypes() {
+    /**
+     * Get the columns and its types.
+     * @return A map of {@link com.stratio.crossdata.common.data.ColumnName} and {@link com.stratio.crossdata.common
+     * .metadata.ColumnType} .
+     */
+    public Map<ColumnName, ColumnType> getColumnsWithTypes() {
         return columnsWithType;
     }
 
-    public TableName getTableName() {
-        return tableName;
-    }
-
-    public void setTableName(TableName tableName) {
-        this.tableName = tableName;
-    }
-
+    /**
+     * Gte the cluster name of a table.
+     * @return The {@link com.stratio.crossdata.common.data.ClusterName} .
+     */
     public ClusterName getClusterName() {
         return clusterName;
     }
@@ -163,9 +166,13 @@ public class CreateTableStatement extends MetadataStatement implements ITableSta
      * @param properties The list.
      */
     public void setProperties(String properties) {
-        this.properties = StringUtils.convertJsonToOptions(tableName, properties);
+        this.properties = StringUtils.convertJsonToOptions(tableStatement.getTableName(), properties);
     }
 
+    /**
+     * Set if the table will be created if exists previously.
+     * @param ifNotExists The condition of creation.
+     */
     public void setIfNotExists(boolean ifNotExists) {
         this.ifNotExists = ifNotExists;
     }
@@ -187,7 +194,7 @@ public class CreateTableStatement extends MetadataStatement implements ITableSta
         if (ifNotExists) {
             sb.append("IF NOT EXISTS ");
         }
-        sb.append(tableName.getQualifiedName());
+        sb.append(tableStatement.getTableName().getQualifiedName());
         sb.append(" ON CLUSTER ").append(clusterName);
 
         sb.append("(");
@@ -204,10 +211,18 @@ public class CreateTableStatement extends MetadataStatement implements ITableSta
         return sb.toString();
     }
 
+    /**
+     * Return if the table has properties.
+     * @return The result check.
+     */
     private boolean hasProperties() {
         return ((properties != null) && (!properties.isEmpty()));
     }
 
+    /**
+     * Get the conditions of validations that are needed to create the table.
+     * @return The {@link com.stratio.crossdata.core.validator.requirements.ValidationRequirements} .
+     */
     public ValidationRequirements getValidationRequirements() {
         ValidationRequirements requirements = new ValidationRequirements()
                 .add(ValidationTypes.MUST_EXIST_CATALOG)
@@ -218,20 +233,10 @@ public class CreateTableStatement extends MetadataStatement implements ITableSta
         return requirements;
     }
 
-    @Override
-    public CatalogName getEffectiveCatalog() {
-        CatalogName effective;
-        if (tableName != null) {
-            effective = tableName.getCatalogName();
-        } else {
-            effective = catalog;
-        }
-        if (sessionCatalog != null) {
-            effective = sessionCatalog;
-        }
-        return effective;
-    }
-
+    /**
+     * Get isIfNotExists value.
+     * @return A boolean.
+     */
     public boolean isIfNotExists() {
         return ifNotExists;
     }

@@ -51,8 +51,10 @@ import difflib.PatchFailedException;
  */
 public final class StringUtils {
 
-    private StringUtils(){
-
+    /**
+     * Private constructor as StringUtils is a utility class.
+     */
+    private StringUtils() {
     }
 
     /**
@@ -79,6 +81,13 @@ public final class StringUtils {
         }
     }
 
+    /**
+     * Transform a JSON into a map of selectors.
+     *
+     * @param tableName The associated {@link com.stratio.crossdata.common.data.TableName}.
+     * @param json      The JSON string.
+     * @return A map of {@link com.stratio.crossdata.common.statements.structures.Selector} matching the JSON document.
+     */
     public static Map<Selector, Selector> convertJsonToOptions(TableName tableName, String json) {
         if ((json == null) || (json.isEmpty())) {
             return new HashMap<>();
@@ -105,28 +114,13 @@ public final class StringUtils {
         return options;
     }
 
-    public static Map<String, Object> convertJsonToMap(String json) {
-        Map<String, Object> options = new LinkedHashMap<>();
-        ObjectMapper mapper = new ObjectMapper();
-        mapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
-        mapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
-        JsonFactory factory = mapper.getJsonFactory();
-        JsonParser jp;
-        try {
-            jp = factory.createJsonParser(json);
-            JsonNode root = mapper.readTree(jp);
-            Iterator<Map.Entry<String, JsonNode>> iter = root.getFields();
-            while (iter.hasNext()) {
-                Map.Entry<String, JsonNode> entry = iter.next();
-                Object obj = convertJsonNodeToJavaType(entry.getValue());
-                options.put(entry.getKey(), obj);
-            }
-        } catch (IOException e) {
-            LOG.error(e);
-        }
-        return options;
-    }
-
+    /**
+     * Transform a JSON node into a equivalent Crossdata selector.
+     *
+     * @param tableName The associated {@link com.stratio.crossdata.common.data.TableName}.
+     * @param jsonNode  The {@link org.codehaus.jackson.JsonNode}.
+     * @return A {@link com.stratio.crossdata.common.statements.structures.Selector}.
+     */
     private static Selector convertJsonNodeToCrossdataParserType(TableName tableName, JsonNode jsonNode) {
         Selector selector;
         if (jsonNode.isBigDecimal() || jsonNode.isDouble()) {
@@ -141,51 +135,56 @@ public final class StringUtils {
         return selector;
     }
 
-    private static Object convertJsonNodeToJavaType(JsonNode jsonNode) {
-        Object obj;
-        if (jsonNode.isBigDecimal() || jsonNode.isDouble()) {
-            obj = jsonNode.getDoubleValue();
-        } else if (jsonNode.isBoolean()) {
-            obj = jsonNode.getBooleanValue();
-        } else if (jsonNode.isInt() || jsonNode.isBigInteger() || jsonNode.isLong()) {
-            obj = jsonNode.getIntValue();
-        } else {
-            obj = jsonNode.getTextValue();
-        }
-        return obj;
-    }
-
-    public static String getAkkaActorRefUri(Object object){
-        if(object != null) {
+    /**
+     * Get the string representation of a AKKA actor reference URI.
+     *
+     * @param object The object with the Actor ref.
+     * @return A string with the URI
+     */
+    public static String getAkkaActorRefUri(Object object) {
+        if (object != null) {
             return object.toString().replace("Actor[", "").replace("]", "").split("\\$")[0].split("#")[0];
         }
         return null;
     }
 
+    /**
+     * Convert the java types to Crossdata types.
+     * @param javaType The java type
+     * @return A Crossdata {@link ColumnType}
+     */
+
     public static ColumnType convertJavaTypeToXdType(String javaType) {
         ColumnType ct = ColumnType.NATIVE;
-        if(javaType.equalsIgnoreCase("Long")){
+        if (javaType.equalsIgnoreCase("Long")) {
             ct = ColumnType.BIGINT;
-        } else if(javaType.equalsIgnoreCase("Boolean")){
+        } else if (javaType.equalsIgnoreCase("Boolean")) {
             ct = ColumnType.BOOLEAN;
-        } else if(javaType.equalsIgnoreCase("Double")){
+        } else if (javaType.equalsIgnoreCase("Double")) {
             ct = ColumnType.DOUBLE;
-        } else if(javaType.equalsIgnoreCase("Float")){
+        } else if (javaType.equalsIgnoreCase("Float")) {
             ct = ColumnType.DOUBLE;
-        } else if(javaType.equalsIgnoreCase("Integer")){
+        } else if (javaType.equalsIgnoreCase("Integer")) {
             ct = ColumnType.INT;
-        } else if(javaType.equalsIgnoreCase("String")){
+        } else if (javaType.equalsIgnoreCase("String")) {
             ct = ColumnType.TEXT;
-        } else if(javaType.equalsIgnoreCase("Set")){
+        } else if (javaType.equalsIgnoreCase("Set")) {
             ct = ColumnType.SET;
-        } else if(javaType.equalsIgnoreCase("List")){
+        } else if (javaType.equalsIgnoreCase("List")) {
             ct = ColumnType.LIST;
-        } else if(javaType.equalsIgnoreCase("MAP")){
+        } else if (javaType.equalsIgnoreCase("MAP")) {
             ct = ColumnType.MAP;
         }
         return ct;
     }
 
+    /**
+     * Return a patch of the diff between two objects using their serialized string representation.
+     *
+     * @param oa The first object.
+     * @param ob The second object.
+     * @return A {@link difflib.Patch}.
+     */
     public static difflib.Patch objectDiff(Object oa, Object ob){
         String[] a = serializeObject2String(oa).split("\n");
         String[] b = serializeObject2String(ob).split("\n");
@@ -193,7 +192,15 @@ public final class StringUtils {
         ArrayList<String> listb = new ArrayList<String>(Arrays.asList(b));
         return DiffUtils.diff(lista, listb);
     }
-    
+
+    /**
+     * Return a String with the result json adding to the object the patch.
+     *
+     * @param a The object to patch.
+     * @param diff The patch.
+     * @return String.
+     * @throws PatchFailedException .
+     */
     public static String patchObject(Object a, Patch diff) throws PatchFailedException {
         String[] lista = StringUtils.serializeObject2String(a).split("\n"); //apply patch to a
         List<String> partialresult = (List<String>) diff.applyTo(Arrays.asList(lista));
@@ -201,56 +208,80 @@ public final class StringUtils {
         for(String res:partialresult){ jsonresult.append(res); }
         return jsonresult.toString();
     }
-    
-    public static Object deserializeObjectFromString(String serializedObject, Class objectsClass) {
+
+    /**
+     * Deserialize an object.
+     *
+     * @param serializedObject The serialize object.
+     * @param arrayListClass
+     * @return The deserialized object.
+     */
+    public static Object deserializeObjectFromString(String serializedObject, Class arrayListClass) {
         ObjectMapper mapper = new ObjectMapper();
         try {
-            return mapper.readValue(mapper.readTree(serializedObject), ArrayList.class);
+            return mapper.readValue(mapper.readTree(serializedObject), List.class);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.info(e.getMessage(),e);
         }
         return null;
     }
+
+    /**
+     * Serialize a Object to string.
+     * @param obj The object to serialize.
+     * @return A String with the object serialized.
+     */
     public static String serializeObject2String(Object obj) {
         ObjectMapper mapper = new ObjectMapper();
-        mapper.enable( SerializationConfig.Feature.INDENT_OUTPUT );
-        mapper.enable( SerializationConfig.Feature.SORT_PROPERTIES_ALPHABETICALLY);
+        mapper.enable(SerializationConfig.Feature.INDENT_OUTPUT);
+        mapper.enable(SerializationConfig.Feature.SORT_PROPERTIES_ALPHABETICALLY);
         String serialized = null;
         try {
             serialized = mapper.writeValueAsString(obj);
         } catch (IOException e) {
-            e.printStackTrace();
+            LOG.info(e.getMessage(),e);
         }
         return serialized;
     }
 
+    /**
+     * Transfor a Crossdata type into a column type.
+     *
+     * @param xdType The crossdata type.
+     * @return A {@link com.stratio.crossdata.common.metadata.ColumnType}.
+     */
     public static ColumnType convertXdTypeToColumnType(String xdType) {
         ColumnType ct = null;
         String stringType = xdType.replace("Tuple", "").replace("[", "").replace("]", "").trim();
-        if(stringType.equalsIgnoreCase("BigInt")){
+        if (stringType.equalsIgnoreCase("BigInt")) {
             ct = ColumnType.BIGINT;
         } else if (stringType.equalsIgnoreCase("Bool") || stringType.equalsIgnoreCase("Boolean")) {
             ct = ColumnType.BOOLEAN;
-        } else if (stringType.equalsIgnoreCase("Double")){
+        } else if (stringType.equalsIgnoreCase("Double")) {
             ct = ColumnType.DOUBLE;
-        } else if (stringType.equalsIgnoreCase("Float")){
+        } else if (stringType.equalsIgnoreCase("Float")) {
             ct = ColumnType.FLOAT;
-        } else if (stringType.equalsIgnoreCase("Int") || stringType.equalsIgnoreCase("Integer")){
+        } else if (stringType.equalsIgnoreCase("Int") || stringType.equalsIgnoreCase("Integer")) {
             ct = ColumnType.INT;
-        } else if (stringType.equalsIgnoreCase("Text")){
+        } else if (stringType.equalsIgnoreCase("Text")) {
             ct = ColumnType.TEXT;
-        } else if (stringType.equalsIgnoreCase("Varchar")){
+        } else if (stringType.equalsIgnoreCase("Varchar")) {
             ct = ColumnType.VARCHAR;
-        } else if (stringType.equalsIgnoreCase("Set")){
+        } else if (stringType.equalsIgnoreCase("Set")) {
             ct = ColumnType.SET;
-        } else if (stringType.equalsIgnoreCase("List")){
+        } else if (stringType.equalsIgnoreCase("List")) {
             ct = ColumnType.LIST;
-        } else if (stringType.equalsIgnoreCase("Map")){
+        } else if (stringType.equalsIgnoreCase("Map")) {
             ct = ColumnType.MAP;
         }
         return ct;
     }
 
+    /**
+     * Return the type of the crossdata function signature.
+     * @param signature The signature of the function.
+     * @return A String with the type of signature.
+     */
     public static String getReturningTypeFromSignature(String signature) {
         return signature.substring(signature.indexOf(':')+1)
                 .replace("Tuple[", "")

@@ -20,37 +20,54 @@ package com.stratio.crossdata.core.statements;
 
 import com.stratio.crossdata.common.data.CatalogName;
 import com.stratio.crossdata.common.data.TableName;
-import com.stratio.crossdata.core.validator.requirements.ValidationRequirements;
-import com.stratio.crossdata.core.validator.requirements.ValidationTypes;
 
 /**
- * Storage Statement Class.
+ * Class with the logic of the tables statement.
  */
-public abstract class StorageStatement extends CrossdataStatement implements ITableStatement{
+public class TableStatement implements ITableStatement {
+    /**
+     * The name of the table.
+     */
+    protected TableName tableName;
 
     /**
-     * A table statement that affect the storage operation.
+     * The catalog name.
      */
-    TableStatement tableStatement=new TableStatement();
-    
-    @Override
-    public ValidationRequirements getValidationRequirements() {
-        return new ValidationRequirements().add(ValidationTypes.MUST_EXIST_CATALOG)
-                .add(ValidationTypes.MUST_EXIST_TABLE)
-                .add(ValidationTypes.MUST_EXIST_COLUMN);
+    protected CatalogName catalog;
+
+    /**
+     * The catalog name session.
+     */
+    protected CatalogName sessionCatalog;
+
+    /**
+     * Get the table name.
+     * @return A {@link com.stratio.crossdata.common.data.TableName} .
+     */
+    public TableName getTableName() {
+        return tableName;
     }
 
     /**
-     * Get the table name of the storage statement.
-     * @return A {@link com.stratio.crossdata.common.data.TableName} .
+     * Set the table name.
+     * @param tableName The name.
      */
-    public TableName getTableName() { return tableStatement.getTableName(); }
-
-    /**
-     * Set the table name for the storage statement.
-     * @param tablename The table name.
-     */
-    public void setTableName(TableName tablename) { tableStatement.setTableName(tablename); }
+    public void setTableName(TableName tableName) {
+        this.tableName = tableName;
+    }
+    
     @Override
-    public CatalogName getEffectiveCatalog() { return tableStatement.getEffectiveCatalog(); }
+    public CatalogName getEffectiveCatalog() {
+        CatalogName effective;
+        if (tableName != null) {
+            effective = tableName.getCatalogName();
+        } else {
+            effective = catalog;
+        }
+        if (sessionCatalog != null) {
+            effective = sessionCatalog;
+        }
+        return effective;
+    }
+
 }

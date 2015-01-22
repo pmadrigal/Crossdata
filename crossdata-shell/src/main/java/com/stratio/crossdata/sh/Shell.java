@@ -87,7 +87,7 @@ public class Shell {
     /**
      * History date format.
      */
-    private SimpleDateFormat dateFormat = new SimpleDateFormat("dd/M/yyyy");
+    public SimpleDateFormat dateFormat = new SimpleDateFormat("dd/M/yyyy");
 
     /**
      * Whether the asynchronous interface should be used.
@@ -285,7 +285,7 @@ public class Shell {
             LOG.info(ConsoleUtils.stringResult(connectionResult));
         } catch (ConnectionException ce) {
             result = false;
-            LOG.error(ce.getMessage());
+            LOG.error(ce.getMessage(),ce);
         }
         return result;
     }
