@@ -22,10 +22,13 @@ import com.stratio.crossdata.common.data.CatalogName;
 import com.stratio.crossdata.common.data.TableName;
 import com.stratio.crossdata.core.validator.requirements.ValidationRequirements;
 
+/**
+ * Abstract metadata table statement class to create and alter table statements.
+ */
 public abstract class AbstractMetadataTableStatement extends MetadataStatement implements ITableStatement{
     
     private class InnerTableStatement extends TableStatement {   }
-    TableStatement tableStatement=new InnerTableStatement();
+    protected TableStatement tableStatement=new InnerTableStatement();
 
 
     protected AbstractMetadataTableStatement() {

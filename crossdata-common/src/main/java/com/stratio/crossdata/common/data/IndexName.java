@@ -18,12 +18,18 @@
 
 package com.stratio.crossdata.common.data;
 
+/**
+ * Index name class that implements the characteristics of the indexes.
+ */
 public class IndexName extends Name {
     /**
-     * Name of the column.
+     * Name of the index.
      */
     private final String name;
 
+    /**
+     * The table name that affect the index.
+     */
     private TableName tableName;
 
     /**
@@ -31,7 +37,7 @@ public class IndexName extends Name {
      *
      * @param catalogName Name of the catalog.
      * @param tableName   Name of the table.
-     * @param indexName   Name of the column.
+     * @param indexName   Name of the index.
      */
     public IndexName(String catalogName, String tableName, String indexName) {
         if (tableName != null && !tableName.isEmpty()) {
@@ -46,20 +52,21 @@ public class IndexName extends Name {
      * Constructor using existing TableName.
      *
      * @param tableName  TableName.
-     * @param columnName Name of the column.
+     * @param indexName Name of the index.
      */
-    public IndexName(TableName tableName, String columnName) {
-        this.tableName = tableName;
-        this.name = columnName;
+    public IndexName(TableName tableName, String indexName) {
+        this(((tableName != null) && (tableName.getCatalogName() != null))? tableName.getCatalogName().getName(): null,
+             (tableName != null) ? tableName.getName(): null,
+             indexName);
     }
 
     /**
      * Constructor using existing TableName.
      *
-     * @param columnName Name of the column.
+     * @param columnName Name of the index.
      */
     public IndexName(ColumnName columnName) {
-        this(columnName.getTableName(), columnName.getName());
+        this(columnName.getTableName(),columnName.getName());
     }
 
     public TableName getTableName() {
@@ -79,6 +86,10 @@ public class IndexName extends Name {
         return tableName != null && tableName.isCompletedName();
     }
 
+    /**
+     * Get the complete name of the index.
+     * @return A String.
+     */
     public String getQualifiedName() {
         String result;
         if (isCompletedName()) {

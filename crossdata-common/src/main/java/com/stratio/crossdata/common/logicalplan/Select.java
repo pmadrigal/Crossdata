@@ -44,6 +44,9 @@ public class Select extends TransformationStep {
      */
     private Map<String, ColumnType> typeMap;
 
+    /**
+     * Map with the types of the selectors.
+     */
     private Map<Selector, ColumnType> typeMapFromColumnName;
 
     /**
@@ -56,6 +59,7 @@ public class Select extends TransformationStep {
      *            result.
      * @param typeMap
      *            The mapping of column types.
+     * @param typeMapFromColumnName  The types of selectors.
      */
     public Select(Operations operation, Map<Selector, String> columnMap, Map<String, ColumnType> typeMap,
             Map<Selector, ColumnType> typeMapFromColumnName) {
@@ -99,6 +103,7 @@ public class Select extends TransformationStep {
     }
 
     /**
+     * @deprecated
      * Get the columns in the expected order. With the introduction of function support
      * this method is marked as Deprecated in favour of #getOutputSelectorOrder().
      * @return A list of {@link com.stratio.crossdata.common.data.ColumnName}.

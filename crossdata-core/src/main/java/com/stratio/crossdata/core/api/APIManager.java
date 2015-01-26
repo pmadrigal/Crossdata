@@ -121,7 +121,10 @@ public class APIManager {
     private static final String PROCESSING = "Processing ";
 
     /**
-     * Class constructor.
+     * Constructor class.
+     * @param parser The parser.
+     * @param validator The validator.
+     * @param planner The planner.
      */
     public APIManager(Parser parser, Validator validator, Planner planner) {
         this.parser = parser;
@@ -129,7 +132,7 @@ public class APIManager {
         this.planner = planner;
     }
 
-    private Result processRequestListCatalogs(Command cmd){
+    private Result processRequestListCatalogs(){
         Result result;
         LOG.info("Processing " + APICommand.LIST_CATALOGS().toString());
         LOG.info(PROCESSING + APICommand.LIST_CATALOGS().toString());
@@ -215,7 +218,7 @@ public class APIManager {
     public Result processRequest(Command cmd) {
         Result result;
         if (APICommand.LIST_CATALOGS().equals(cmd.commandType())) {
-            result=processRequestListCatalogs(cmd);
+            result=processRequestListCatalogs();
         } else if (APICommand.LIST_TABLES().equals(cmd.commandType())) {
            result=processRequestListTables(cmd);
         } else if (APICommand.LIST_COLUMNS().equals(cmd.commandType())) {
@@ -308,27 +311,34 @@ public class APIManager {
 
         if (datastore != null) {
             StringBuilder sb = new StringBuilder(System.getProperty("line.separator"));
-            sb.append("\t").append("Name: ").append(datastore.getName()).append(System.lineSeparator());
-            sb.append("\t").append("Version: ").append(datastore.getVersion()).append(System.lineSeparator());
-
-            sb.append("\t").append("Required properties: ").append(System.lineSeparator());
+            sb.append("\t").append("Name: ").append(System.getProperty("line.separator")).append("\t\t").append
+                    (datastore.getName()).append(System.lineSeparator());
+            sb.append("\t").append("Version: ").append(System.getProperty("line.separator")).append("\t\t").append
+                    (datastore.getVersion()).append(System.lineSeparator());
+            sb.append("\t").append("Required properties: ").append(System.getProperty("line.separator"));
             Set<PropertyType> requiredProps = datastore.getRequiredProperties();
             for (PropertyType pt : requiredProps) {
-                sb.append("\t").append(pt.getPropertyName()).append(": ").append(pt.getDescription()).append(
+                sb.append("\t\t").append(pt.getPropertyName()).append(": ").append(pt.getDescription()).append(
                         System.lineSeparator());
             }
 
             sb.append("\t").append("Other properties: ").append(System.lineSeparator());
             Set<PropertyType> othersProps = datastore.getOthersProperties();
             for (PropertyType pt : othersProps) {
-                sb.append("\t").append(pt.getPropertyName()).append(": ").append(pt.getDescription()).append(
+                sb.append("\t\t").append(pt.getPropertyName()).append(": ").append(pt.getDescription()).append(
                         System.lineSeparator());
             }
 
-            sb.append("\t").append("Behaviours: ").append(datastore.getBehaviors())
-                    .append(System.lineSeparator());
-            sb.append("\t").append("Attached Refs: ").append(datastore.getClusterAttachedRefs().keySet())
-                    .append(System.lineSeparator());
+            sb.append("\t").append("Functions: ").append(System.lineSeparator());
+            Set<FunctionType> functions=datastore.getFunctions();
+            for (FunctionType function:functions){
+                sb.append("\t\t").append(function.getFunctionName()).append(System.lineSeparator());
+            }
+
+            sb.append("\t").append("Behaviours: ").append(System.getProperty("line.separator")).append("\t\t").append
+                    (datastore.getBehaviors()).append(System.lineSeparator());
+            sb.append("\t").append("Attached Refs: ").append(System.getProperty("line.separator")).append
+                    ("\t\t").append(datastore.getClusterAttachedRefs().keySet()).append(System.lineSeparator());
             result = CommandResult.createCommandResult(sb.toString());
         }
 
@@ -563,46 +573,9 @@ public class APIManager {
         Result result;
         List<DataStoreMetadata> datastores = MetadataManager.MANAGER.getDatastores();
         StringBuilder sb = new StringBuilder().append(System.getProperty("line.separator"));
-
+        sb.append("Datastore: ").append(System.lineSeparator());
         for (DataStoreMetadata datastore : datastores) {
-
-            sb.append("Datastore: ").append(datastore.getName()).append(System.lineSeparator());
-
-            sb.append("Version: ").append(datastore.getVersion()).append(System.lineSeparator());
-
-            sb.append("Required properties: ").append(datastore.getVersion()).append(System.lineSeparator());
-            Set<PropertyType> properties = datastore.getRequiredProperties();
-            for (PropertyType pt : properties) {
-                sb.append("\t").append(pt.getPropertyName()).append(pt.getDescription())
-                        .append(System.lineSeparator());
-            }
-
-            sb.append("Optional properties: ").append(datastore.getVersion()).append(System.lineSeparator());
-            properties = datastore.getOthersProperties();
-            for (PropertyType pt : properties) {
-                sb.append("\t").append(pt.getPropertyName()).append(pt.getDescription())
-                        .append(System.lineSeparator());
-            }
-
-            sb.append("Behaviours: ").append(datastore.getVersion()).append(System.lineSeparator());
-            Set<String> behaviours = datastore.getBehaviors();
-            for (String b : behaviours) {
-                sb.append("\t").append(b).append(System.lineSeparator());
-            }
-
-            sb.append("Functions: ").append(datastore.getVersion()).append(System.lineSeparator());
-            Set<FunctionType> functions = datastore.getFunctions();
-            for (FunctionType function : functions) {
-                 sb.append("\t").append(function.getFunctionName()).append(System.lineSeparator());
-            }
-
-            sb.append("Attached clusters: ").append(datastore.getVersion()).append(System.lineSeparator());
-            Set<ClusterName> clusters = datastore.getClusterAttachedRefs().keySet();
-            for (ClusterName cluster : clusters) {
-                sb.append("\t").append(cluster).append(System.getProperty("line.separator"));
-            }
-
-            sb = sb.append(System.getProperty("line.separator"));
+            sb.append(datastore.getName()).append(System.lineSeparator());
         }
         result = CommandResult.createCommandResult(sb.toString());
         return result;
@@ -616,20 +589,7 @@ public class APIManager {
         for (ClusterMetadata cluster : clusters) {
             sb.append("Clusters List:").append(System.lineSeparator());
             sb.append("\t").append(cluster.getName()).append(System.lineSeparator());
-            /*
-            sb.append("Datastore: ").append(cluster.getDataStoreRef()).append(System.lineSeparator());
 
-            sb.append("Options: ").append(System.lineSeparator());
-            Map<Selector, Selector> options = cluster.getOptions();
-            for (Map.Entry<Selector, Selector> entry : options.entrySet()) {
-                sb.append(entry.getKey()).append(": ").append(entry.getValue()).append(System.lineSeparator());
-            }
-
-            sb.append("Attached connectors: ").append(cluster.getConnectorAttachedRefs().keySet())
-                    .append(System.lineSeparator());
-
-            sb = sb.append(System.getProperty("line.separator"));
-            */
         }
         result = CommandResult.createCommandResult(sb.toString());
         return result;
