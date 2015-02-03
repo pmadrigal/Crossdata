@@ -18,12 +18,16 @@
 
 package com.stratio.crossdata.core.api;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.stratio.crossdata.common.ask.APICommand;
@@ -31,6 +35,7 @@ import com.stratio.crossdata.common.ask.Command;
 import com.stratio.crossdata.common.data.ConnectorName;
 import com.stratio.crossdata.common.data.DataStoreName;
 import com.stratio.crossdata.common.data.Name;
+import com.stratio.crossdata.common.exceptions.ManifestException;
 import com.stratio.crossdata.common.manifest.BehaviorsType;
 import com.stratio.crossdata.common.manifest.ConnectorType;
 import com.stratio.crossdata.common.manifest.DataStoreRefsType;
@@ -41,25 +46,35 @@ import com.stratio.crossdata.common.manifest.SupportedOperationsType;
 import com.stratio.crossdata.common.result.CommandResult;
 import com.stratio.crossdata.common.result.ErrorResult;
 import com.stratio.crossdata.common.result.Result;
+import com.stratio.crossdata.core.MetadataManagerTestHelper;
 import com.stratio.crossdata.core.metadata.MetadataManager;
-import com.stratio.crossdata.core.metadata.MetadataManagerTestHelper;
 import com.stratio.crossdata.core.parser.Parser;
 import com.stratio.crossdata.core.planner.Planner;
 import com.stratio.crossdata.core.validator.Validator;
 
-public class APIManagerTest extends MetadataManagerTestHelper {
+public class APIManagerTest {
 
     private final Parser parser = new Parser();
     private final Validator validator = new Validator();
     private final Planner planner = new Planner();
 
+    @BeforeClass
+    public void setUp() throws ManifestException {
+        MetadataManagerTestHelper.HELPER.initHelper();
+        MetadataManagerTestHelper.HELPER.createTestEnvironment();
+    }
+
+    @AfterClass
+    public void tearDown() throws Exception {
+        MetadataManager.MANAGER.clear();
+    }
+
     @Test
     public void testPersistDataStore() throws Exception {
-        APIManager ApiManager = new APIManager(parser, validator, planner);
 
         DataStoreType dataStoreType = new DataStoreType();
 
-        dataStoreType.setName("dataStoreTest");
+        dataStoreType.setName("dataStoreMock");
 
         dataStoreType.setVersion("0.2.0");
 
@@ -94,7 +109,7 @@ public class APIManagerTest extends MetadataManagerTestHelper {
 
         String expectedResult =
                 "CrossdataManifest added " + System.lineSeparator() + "DATASTORE" + System.lineSeparator() +
-                        "Name: dataStoreTest" + System.lineSeparator()
+                        "Name: dataStoreMock" + System.lineSeparator()
                         + "Version: 0.2.0" + System.lineSeparator() + "Required properties: " + System.lineSeparator() +
                         "\tProperty: " + System.lineSeparator() + "\t\tPropertyName: RequiredProperty" +
                         System.lineSeparator() + "\t\tDescription: Test" + System.lineSeparator()
@@ -103,9 +118,17 @@ public class APIManagerTest extends MetadataManagerTestHelper {
                         "OptionalProperty" + System.lineSeparator() + "\t\tDescription: Test" + System.lineSeparator() +
                         "Behaviors: " + System.lineSeparator() + "\tBehavior: Test" + System.lineSeparator();
 
-        CommandResult result = (CommandResult) ApiManager.processRequest(cmd);
+        Result result = MetadataManagerTestHelper.HELPER.getApiManager().processRequest(cmd);
 
-        String str = String.valueOf(result.getResult());
+        if(result instanceof ErrorResult){
+            fail(System.lineSeparator() +
+                "testPersistDataStore failed." + System.lineSeparator() +
+                ((ErrorResult)result).getErrorMessage());
+        }
+
+        CommandResult commandResult = (CommandResult) result;
+
+        String str = String.valueOf(commandResult.getResult());
 
         assertTrue(str.equalsIgnoreCase(expectedResult), "- Expected: " + System.lineSeparator() +
                 expectedResult + System.lineSeparator() + "-    Found: " + System.lineSeparator() + str);
@@ -281,23 +304,39 @@ public class APIManagerTest extends MetadataManagerTestHelper {
                 "Found: " + result.getClass().getCanonicalName());
     }
 
-    @Test
+    @Test(dependsOnMethods = { "testPersistConnector" })
     public void testListConnectors() throws Exception {
         APIManager ApiManager = new APIManager(parser, validator, planner);
         Command cmd = new Command("QID", APICommand.DESCRIBE_CONNECTORS(), null);
-        createTestConnector("connectorTest", new DataStoreName("datastoreTest"), "akkaActorRef");
+        MetadataManagerTestHelper.HELPER.createTestConnector("connectorTest", new DataStoreName("datastoreTest"), "akkaActorRef");
         CommandResult result = (CommandResult) ApiManager.processRequest(cmd);
+
+        /*
         String expectedResult = System.lineSeparator() + "Connector: connector.connectortest" +
                 "\tONLINE\t[]\t[datastore.datastoretest]\takkaActorRef" + System.lineSeparator();
+        */
+
         String str = String.valueOf(result.getResult());
+        String[] connectors = str.split(System.lineSeparator());
+
+        int expectedSize = 1;
+
+        assertEquals((connectors.length-1), expectedSize,
+                System.lineSeparator() +
+                "testListConnectors failed." + System.lineSeparator() +
+                "Expected number of connectors: " + expectedSize + System.lineSeparator() +
+                "Number of connectors found:    " + (connectors.length-1));
+
+        /*
         assertTrue(str.equalsIgnoreCase(expectedResult), "Expected: " + expectedResult + System.lineSeparator() +
                 "   Found: " + str);
+        */
     }
 
-    @Test
+    @Test(dependsOnMethods = { "testListConnectors" })
     public void testResetMetadata() throws Exception {
         APIManager ApiManager = new APIManager(parser, validator, planner);
-        createTestConnector("connectorTest2", new DataStoreName("datastoreTest"), "akkaActorRef");
+        MetadataManagerTestHelper.HELPER.createTestConnector("connectorTest2", new DataStoreName("datastoreTest"), "akkaActorRef");
         Command cmd = new Command("QID", APICommand.RESET_SERVERDATA(), null);
         CommandResult result = (CommandResult) ApiManager.processRequest(cmd);
 
@@ -352,4 +391,5 @@ public class APIManagerTest extends MetadataManagerTestHelper {
                 "Expected: " + "CrossdataManifest added" + System.lineSeparator() +
                 "Found:    " + resultStr);
     }
+
 }

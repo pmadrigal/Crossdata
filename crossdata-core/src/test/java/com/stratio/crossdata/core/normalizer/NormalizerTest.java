@@ -21,12 +21,17 @@ package com.stratio.crossdata.core.normalizer;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.apache.log4j.Logger;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.stratio.crossdata.common.data.CatalogName;
@@ -36,6 +41,7 @@ import com.stratio.crossdata.common.data.ConnectorName;
 import com.stratio.crossdata.common.data.DataStoreName;
 import com.stratio.crossdata.common.data.IndexName;
 import com.stratio.crossdata.common.data.TableName;
+import com.stratio.crossdata.common.exceptions.ManifestException;
 import com.stratio.crossdata.common.exceptions.ValidationException;
 import com.stratio.crossdata.common.metadata.CatalogMetadata;
 import com.stratio.crossdata.common.metadata.ClusterMetadata;
@@ -44,24 +50,45 @@ import com.stratio.crossdata.common.metadata.ColumnType;
 import com.stratio.crossdata.common.metadata.ConnectorAttachedMetadata;
 import com.stratio.crossdata.common.metadata.IndexMetadata;
 import com.stratio.crossdata.common.metadata.TableMetadata;
+import com.stratio.crossdata.common.statements.structures.ColumnSelector;
+import com.stratio.crossdata.common.statements.structures.Operator;
+import com.stratio.crossdata.common.statements.structures.OrderByClause;
+import com.stratio.crossdata.common.statements.structures.Relation;
+import com.stratio.crossdata.common.statements.structures.SelectExpression;
 import com.stratio.crossdata.common.statements.structures.Selector;
+import com.stratio.crossdata.common.statements.structures.StringSelector;
 import com.stratio.crossdata.core.metadata.MetadataManager;
-import com.stratio.crossdata.core.metadata.MetadataManagerTestHelper;
+import com.stratio.crossdata.core.MetadataManagerTestHelper;
+import com.stratio.crossdata.core.query.BaseQuery;
 import com.stratio.crossdata.core.query.SelectParsedQuery;
 import com.stratio.crossdata.core.query.SelectValidatedQuery;
+import com.stratio.crossdata.core.statements.SelectStatement;
+import com.stratio.crossdata.core.structures.GroupByClause;
+import com.stratio.crossdata.core.structures.InnerJoin;
 
-public class NormalizerTest extends MetadataManagerTestHelper {
+public class NormalizerTest {
 
     /**
      * Class logger.
      */
     private static final Logger LOG = Logger.getLogger(MetadataManagerTestHelper.class);
 
-    @Test(groups = "putData")
-    public void putData() throws Exception {
+    @BeforeClass
+    public void setUp() throws ManifestException {
+        MetadataManagerTestHelper.HELPER.initHelper();
+        MetadataManagerTestHelper.HELPER.createTestEnvironment();
+    }
+
+    @AfterClass
+    public void tearDown() throws Exception {
+        MetadataManager.MANAGER.clear();
+    }
+
+    @Test
+    public void insertData() throws Exception {
 
         // DATASTORE
-        insertDataStore("Cassandra", "production");
+        MetadataManagerTestHelper.HELPER.insertDataStore("Cassandra", "production");
 
         // CLUSTER
         ClusterName clusterName = new ClusterName("testing");
@@ -72,7 +99,7 @@ public class NormalizerTest extends MetadataManagerTestHelper {
         ClusterMetadata clusterMetadata = new ClusterMetadata(clusterName, dataStoreRef, clusterOptions,
                 connectorAttachedRefs);
 
-        MetadataManager.MANAGER.createCluster(clusterMetadata);
+        MetadataManager.MANAGER.createCluster(clusterMetadata, false);
 
         // CATALOG 1
         HashMap<TableName, TableMetadata> tables = new HashMap<>();
@@ -144,7 +171,10 @@ public class NormalizerTest extends MetadataManagerTestHelper {
                 tables // tables
         );
 
-        MetadataManager.MANAGER.createCatalog(catalogMetadata);
+        MetadataManager.MANAGER.createCatalog(catalogMetadata, false);
+
+        assertTrue(MetadataManager.MANAGER.exists(catalogMetadata.getName()), System.lineSeparator() +
+                "Catalog: " + catalogMetadata.getName() + " not found in the Metadata Manager");
 
         // CATALOG 2
         tables = new HashMap<>();
@@ -203,9 +233,12 @@ public class NormalizerTest extends MetadataManagerTestHelper {
                 tables // tables
         );
 
-        MetadataManager.MANAGER.createCatalog(catalogMetadata);
+        MetadataManager.MANAGER.createCatalog(catalogMetadata, false);
 
         LOG.info("Data inserted in the MetadataManager for the NormalizedTest");
+
+        assertTrue(MetadataManager.MANAGER.exists(catalogMetadata.getName()), System.lineSeparator() +
+                "Catalog: " + catalogMetadata.getName() + " not found in the Metadata Manager");
     }
 
     public void testSelectedParserQuery(SelectParsedQuery selectParsedQuery, String expectedText, String methodName) {
@@ -220,12 +253,14 @@ public class NormalizerTest extends MetadataManagerTestHelper {
 
         assertTrue(result.toString().equalsIgnoreCase(expectedText),
                 "Test failed: " + methodName + System.lineSeparator() +
-                        "Result:   " + result.toString() + System.lineSeparator() +
-                        "Expected: " + expectedText);
+                "Result:   " + result.toString() + System.lineSeparator() +
+                "Expected: " + expectedText);
     }
-/*
-    @Test(dependsOnGroups = "putData")
+
+    @Test
     public void testNormalizeWhereOrderGroup() throws Exception {
+
+        insertData();
 
         String methodName = "testNormalizeWhereOrderGroup";
 
@@ -235,8 +270,8 @@ public class NormalizerTest extends MetadataManagerTestHelper {
                 + "GROUP BY colSales, colExpenses;";
 
         String expectedText = "SELECT demo.tableClients.colSales, demo.tableClients.colExpenses FROM demo.tableClients "
-                + "WHERE demo.tableClients.colPlace = Madrid "
-                + "ORDER BY demo.tableClients.year "
+                + "WHERE demo.tableClients.colPlace = 'Madrid' "
+                + "ORDER BY [demo.tableClients.year] "
                 + "GROUP BY demo.tableClients.colSales, demo.tableClients.colExpenses";
 
         // BASE QUERY
@@ -261,8 +296,10 @@ public class NormalizerTest extends MetadataManagerTestHelper {
         // ORDER BY
         List<Selector> selectorListOrder = new ArrayList<>();
         selectorListOrder.add(new ColumnSelector(new ColumnName(null, "year")));
-        OrderByClause orderBy = new OrderByClause(selectorListOrder);
-        selectStatement.setOrderByClauses(orderBy);
+        OrderByClause orderBy = new OrderByClause(new ColumnSelector(new ColumnName(null, "year")));
+        List<OrderByClause> orderByClauses = new ArrayList<>();
+        orderByClauses.add(orderBy);
+        selectStatement.setOrderByClauses(orderByClauses);
 
         // GROUP BY
         List<Selector> groupBy = new ArrayList<>();
@@ -272,11 +309,28 @@ public class NormalizerTest extends MetadataManagerTestHelper {
 
         SelectParsedQuery selectParsedQuery = new SelectParsedQuery(baseQuery, selectStatement);
 
-        testSelectedParserQuery(selectParsedQuery, expectedText, methodName);
+        Normalizer normalizer = new Normalizer();
+
+        SelectValidatedQuery result = null;
+        try {
+            result = normalizer.normalize(selectParsedQuery);
+        } catch (ValidationException e) {
+            fail("Test failed: " + methodName + System.lineSeparator(), e);
+        }
+
+        assertTrue(result.toString().equalsIgnoreCase(expectedText),
+                "Test failed: " + methodName + System.lineSeparator() +
+                        "Result:   " + result.toString() + System.lineSeparator() +
+                        "Expected: " + expectedText);
+
+
+
     }
 
-    @Test(dependsOnGroups = "putData")
+    @Test
     public void testNormalizeInnerJoin() throws Exception {
+
+        insertData();
 
         String methodName = "testNormalizeInnerJoin";
 
@@ -290,8 +344,8 @@ public class NormalizerTest extends MetadataManagerTestHelper {
         String expectedText =
                 "SELECT demo.tableClients.colSales, myCatalog.tableCostumers.colFee FROM demo.tableClients "
                         + "INNER JOIN myCatalog.tableCostumers ON myCatalog.tableCostumers.assistantId = demo.tableClients.clientId "
-                        + "WHERE myCatalog.tableCostumers.colCity = Madrid "
-                        + "ORDER BY myCatalog.tableCostumers.age "
+                        + "WHERE myCatalog.tableCostumers.colCity = 'Madrid' "
+                        + "ORDER BY [myCatalog.tableCostumers.age] "
                         + "GROUP BY demo.tableClients.colSales, myCatalog.tableCostumers.colFee";
 
         // BASE QUERY
@@ -325,8 +379,10 @@ public class NormalizerTest extends MetadataManagerTestHelper {
         // ORDER BY
         List<Selector> selectorListOrder = new ArrayList<>();
         selectorListOrder.add(new ColumnSelector(new ColumnName(null, "age")));
-        OrderByClause orderBy = new OrderByClause(selectorListOrder);
-        selectStatement.setOrderByClauses(orderBy);
+        OrderByClause orderBy = new OrderByClause(new ColumnSelector(new ColumnName(null, "age")));
+        List<OrderByClause> orderByClauses = new ArrayList<>();
+        orderByClauses.add(orderBy);
+        selectStatement.setOrderByClauses(orderByClauses);
 
         // GROUP BY
         List<Selector> groupBy = new ArrayList<>();
@@ -336,8 +392,20 @@ public class NormalizerTest extends MetadataManagerTestHelper {
 
         SelectParsedQuery selectParsedQuery = new SelectParsedQuery(baseQuery, selectStatement);
 
-        testSelectedParserQuery(selectParsedQuery, expectedText, methodName);
+        Normalizer normalizer = new Normalizer();
+
+        SelectValidatedQuery result = null;
+        try {
+            result = normalizer.normalize(selectParsedQuery);
+        } catch (ValidationException e) {
+            fail("Test failed: " + methodName + System.lineSeparator(), e);
+        }
+
+        assertTrue(result.toString().equalsIgnoreCase(expectedText),
+                "Test failed: " + methodName + System.lineSeparator() +
+                        "Result:   " + result.toString() + System.lineSeparator() +
+                        "Expected: " + expectedText);
 
     }
-*/
+
 }
