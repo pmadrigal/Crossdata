@@ -23,6 +23,7 @@ import java.io.File
 import com.stratio.crossdata.core.engine.EngineConfig
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.log4j.Logger
+import scala.collection.JavaConversions.enumerationAsScalaIterator
 
 object ServerConfig {
   val SERVER_BASIC_CONFIG = "server-reference.conf"
@@ -39,10 +40,23 @@ object ServerConfig {
 
 trait ServerConfig extends GridConfig with NumberActorConfig {
 
+
+
+  def getLocalIPs():List[String] = {
+    val addresses = for {
+      networkInterface <- java.net.NetworkInterface.getNetworkInterfaces()
+      address <- networkInterface.getInetAddresses
+    } yield address.toString
+    val filterthese = List(".*127.0.0.1", ".*localhost.*", ".*::1", ".*0:0:0:0:0:0:0:1")
+    for {r <- addresses.toList; if (filterthese.find(e => r.matches(e)).isEmpty)} yield r
+  }
+
+  val ips=getLocalIPs()
   lazy val logger: Logger = ???
   lazy val engineConfig: EngineConfig = {
     val result = new EngineConfig()
     result.setGridListenAddress(gridListenAddress)
+    if(ips.length==1)result.setGridListenAddress(ips(1))
     result.setGridContactHosts(gridContactHosts)
     result.setGridPort(gridPort)
     result.setGridMinInitialMembers(gridMinInitialMembers)

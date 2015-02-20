@@ -20,9 +20,11 @@ package com.stratio.connector.inmemory.datastore;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import com.stratio.connector.inmemory.datastore.datatypes.AbstractInMemoryDataType;
 import com.stratio.connector.inmemory.datastore.functions.AbstractInMemoryFunction;
 import com.stratio.connector.inmemory.datastore.selector.InMemoryColumnSelector;
 import com.stratio.connector.inmemory.datastore.selector.InMemoryFunctionSelector;
@@ -62,7 +64,7 @@ public class InMemoryTable {
     /**
      * Map of rows indexed by primary key.
      */
-    private final Map<String, Object[]> rows = new HashMap<>();
+    private final Map<String, Object[]> rows = new LinkedHashMap<>();
 
     /**
      * Maximum number of rows in the table.
@@ -89,6 +91,10 @@ public class InMemoryTable {
             index++;
         }
         this.maxRows = maxRows;
+    }
+
+    public String getTableName() {
+        return tableName;
     }
 
     /**
@@ -122,8 +128,16 @@ public class InMemoryTable {
     public void insert(Map<String, Object> row) throws Exception {
         checkTableSpace();
         Object [] rowObjects = new Object[columnNames.length];
-        for(Map.Entry<String, Object> cols : row.entrySet()){
+        for(Map.Entry<String, Object> cols: row.entrySet()){
             rowObjects[columnIndex.get(cols.getKey())] = cols.getValue();
+            // Check if it's a native data type
+            Class clazz = getColumnTypes()[columnIndex.get(cols.getKey())];
+            AbstractInMemoryDataType inMemoryDataType =
+                    AbstractInMemoryDataType.castToNativeDataType(clazz.getSimpleName());
+            if(inMemoryDataType != null){
+                rowObjects[columnIndex.get(cols.getKey())] =
+                        inMemoryDataType.convertStringToInMemoryDataType(String.valueOf(cols.getValue()));
+            }
         }
         String key = generatePrimaryKey(row);
         rows.put(key, rowObjects);

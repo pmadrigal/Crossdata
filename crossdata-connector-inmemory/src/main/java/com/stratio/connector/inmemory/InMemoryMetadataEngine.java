@@ -19,16 +19,17 @@
 package com.stratio.connector.inmemory;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
 
+import com.stratio.connector.inmemory.datastore.InMemoryCatalog;
 import com.stratio.connector.inmemory.datastore.InMemoryDatastore;
+import com.stratio.connector.inmemory.datastore.InMemoryTable;
+import com.stratio.connector.inmemory.datastore.datatypes.AbstractInMemoryDataType;
 import com.stratio.crossdata.common.connector.IMetadataEngine;
 import com.stratio.crossdata.common.data.AlterOptions;
 import com.stratio.crossdata.common.data.CatalogName;
@@ -42,6 +43,7 @@ import com.stratio.crossdata.common.exceptions.UnsupportedException;
 import com.stratio.crossdata.common.metadata.CatalogMetadata;
 import com.stratio.crossdata.common.metadata.ColumnMetadata;
 import com.stratio.crossdata.common.metadata.ColumnType;
+import com.stratio.crossdata.common.metadata.DataType;
 import com.stratio.crossdata.common.metadata.IndexMetadata;
 import com.stratio.crossdata.common.metadata.TableMetadata;
 import com.stratio.crossdata.common.statements.structures.Selector;
@@ -99,9 +101,15 @@ public class InMemoryMetadataEngine implements IMetadataEngine {
             Class [] columnTypes = new Class[tableMetadata.getColumns().size()];
 
             int index = 0;
-            for(Map.Entry<ColumnName, ColumnMetadata> column : tableMetadata.getColumns().entrySet()){
+            for(Map.Entry<ColumnName, ColumnMetadata> column: tableMetadata.getColumns().entrySet()){
                 columnNames[index] = column.getKey().getName();
                 columnTypes[index] = column.getValue().getColumnType().getDbClass();
+                // Check if it's a native data type
+                AbstractInMemoryDataType inMemoryDataType = AbstractInMemoryDataType.castToNativeDataType(
+                        column.getValue().getColumnType().getDbType());
+                if(inMemoryDataType != null){
+                    columnTypes[index] = inMemoryDataType.getClazz();
+                }
                 index++;
             }
 
@@ -172,6 +180,17 @@ public class InMemoryMetadataEngine implements IMetadataEngine {
 
     @Override
     public List<CatalogMetadata> provideMetadata(ClusterName clusterName) throws ConnectorException {
+        InMemoryDatastore datastore = connector.getDatastore(clusterName);
+        List<CatalogMetadata> result = new ArrayList<>();
+        if(datastore != null){
+            Map<String, InMemoryCatalog> catalogs = datastore.getCatalogs();
+            for(InMemoryCatalog inMemoryCatalog: catalogs.values()){
+                CatalogMetadata catalogMetadata = convertToXdCatalog(clusterName, inMemoryCatalog);
+                result.add(catalogMetadata);
+            }
+        }
+        return result;
+        /*
         CatalogName name = new CatalogName("InMemoryCatalog");
         Map<Selector, Selector> options = new HashMap<>();
         Map<TableName, TableMetadata> tables = new HashMap<>();
@@ -205,11 +224,89 @@ public class InMemoryMetadataEngine implements IMetadataEngine {
         tables.put(tableName, tableMetadata);
         CatalogMetadata catalogMetadata = new CatalogMetadata(name, options, tables);
         return Arrays.asList(catalogMetadata);
+        */
+    }
+
+    private CatalogMetadata convertToXdCatalog(ClusterName clusterName, InMemoryCatalog inMemoryCatalog) {
+        CatalogName catalogName = new CatalogName(inMemoryCatalog.getName());
+        Map<Selector, Selector> options = new HashMap<>();
+        Map<TableName, TableMetadata> tables = new HashMap<>();
+        for(InMemoryTable inMemoryTable: inMemoryCatalog.getTables().values()){
+            TableName tableName = new TableName(inMemoryCatalog.getName(), inMemoryTable.getTableName());
+            TableMetadata tableMetadata = convertToXdTable(clusterName, inMemoryCatalog.getName(), inMemoryTable);
+            tables.put(tableName, tableMetadata);
+        }
+        CatalogMetadata catalogMetadata = new CatalogMetadata(catalogName, options, tables);
+        return catalogMetadata;
+    }
+
+    private TableMetadata convertToXdTable(ClusterName clusterName, String catalogName, InMemoryTable inMemoryTable) {
+        TableName name = new TableName(catalogName, inMemoryTable.getTableName());
+
+        LinkedHashMap<ColumnName, ColumnMetadata> columns = new LinkedHashMap<>();
+
+        String[] columnNames = inMemoryTable.getColumnNames();
+        Class[] columnTypes = inMemoryTable.getColumnTypes();
+        for(int i = 0; i < columnNames.length; i++){
+            ColumnMetadata columnMetadata = convertToXdColumn(name, columnNames[i], columnTypes[i]);
+            columns.put(columnMetadata.getName(), columnMetadata);
+        }
+
+        Map<IndexName, IndexMetadata> indexes = new HashMap<>();
+
+        Map<Selector, Selector> options = new HashMap<>();
+
+        List<ColumnName> partitionKey = new ArrayList<>();
+        partitionKey.add(new ColumnName(name, columnNames[0]));
+
+        List<ColumnName> clusterKey = new ArrayList<>();
+
+        TableMetadata tableMetadata = new TableMetadata(name, options, columns, indexes, clusterName, partitionKey, clusterKey);
+        return tableMetadata;
+    }
+
+    private ColumnMetadata convertToXdColumn(TableName tableName, String columnName, Class columnType) {
+        ColumnName name = new ColumnName(tableName, columnName);
+        Object[] parameters = new Object[]{};
+        ColumnType columnXdType = convertToXdColumnType(columnType);
+        ColumnMetadata columnMetadata = new ColumnMetadata(name, parameters, columnXdType);
+        return columnMetadata;
+    }
+
+    private ColumnType convertToXdColumnType(Class columnType) {
+        ColumnType ct = new ColumnType(DataType.NATIVE);
+        if(columnType == Long.class){
+            ct = new ColumnType(DataType.BIGINT);
+        } else if (columnType == Boolean.class) {
+            ct = new ColumnType(DataType.BOOLEAN);
+        } else if (columnType == Double.class) {
+            ct = new ColumnType(DataType.DOUBLE);
+        } else if (columnType == Float.class) {
+            ct = new ColumnType(DataType.FLOAT);
+        } else if (columnType == Integer.class) {
+            ct = new ColumnType(DataType.INT);
+        } else if (columnType == String.class) {
+            ct = new ColumnType(DataType.TEXT);
+        } else {
+            ct.setDBMapping(columnType.getSimpleName(), Object.class);
+            ct.setODBCType(columnType.getSimpleName());
+        }
+        return ct;
     }
 
     @Override
     public CatalogMetadata provideCatalogMetadata(ClusterName clusterName, CatalogName catalogName)
             throws ConnectorException {
+        List<CatalogMetadata> catalogs = provideMetadata(clusterName);
+        CatalogMetadata result = null;
+        for(CatalogMetadata catalog: catalogs){
+            if(catalog.getName().equals(catalogName)){
+                result = catalog;
+                break;
+            }
+        }
+        return  result;
+        /*
         CatalogMetadata foundCatalog = null;
         List<CatalogMetadata> catalogs = provideMetadata(clusterName);
         for(CatalogMetadata catalog: catalogs){
@@ -222,11 +319,23 @@ public class InMemoryMetadataEngine implements IMetadataEngine {
             throw new ExecutionException("Catalog " + catalogName + " not found.");
         }
         return foundCatalog;
+        */
     }
 
     @Override
     public TableMetadata provideTableMetadata(ClusterName clusterName, TableName tableName)
             throws ConnectorException {
+        CatalogMetadata catalogMetadata = provideCatalogMetadata(clusterName, tableName.getCatalogName());
+        TableMetadata result = null;
+        for(Map.Entry<TableName, TableMetadata> table: catalogMetadata.getTables().entrySet()){
+            if(table.getKey().equals(tableName)){
+                result = table.getValue();
+                break;
+            }
+        }
+        return result;
+        /*
         return provideCatalogMetadata(clusterName, tableName.getCatalogName()).getTables().get(tableName);
+        */
     }
 }

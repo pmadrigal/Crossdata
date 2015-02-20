@@ -16,19 +16,21 @@
  * under the License.
  */
 
-package com.stratio.crossdata.common.actor;
+package com.stratio.crossdata.common.exceptions.validation;
 
-import com.stratio.crossdata.common.result.Result;
+import com.stratio.crossdata.common.data.CatalogName;
+import com.stratio.crossdata.common.exceptions.ValidationException;
+
 
 /**
- * Interface for actors listening for streaming results.
+ * Exception Class that is thrown when a column is not valid in validator phase.
  */
-public interface IActorResultListener {
-
+public class NotValidCatalogException extends ValidationException {
     /**
-     * Process an incoming result.
-     *
-     * @param result The results.
+     * Constructor class.
+     * @param name The name of the column affected.
      */
-    void processResults(Result result);
+    public NotValidCatalogException(CatalogName name) {
+        super(name + " is not valid catalog in this sentence");
+    }
 }

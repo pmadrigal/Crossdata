@@ -15,21 +15,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-package com.stratio.crossdata.common.exceptions.validation;
-
-import com.stratio.crossdata.common.exceptions.ValidationException;
+package com.stratio.crossdata.common.utils;
 
 /**
- * Exception class that is thrown when a cluster node is not found in a defined datastore.
+ * Class holding several constants.
  */
-public class ClusterNodeNotInDatastoreException extends ValidationException {
+public final class Constants {
 
     /**
-     * Constructor class.
-     * @param cause The cause of the exception.
+     * Default priority value.
      */
-    public ClusterNodeNotInDatastoreException(String cause) {
-        super(cause);
+     public static final int DEFAULT_PRIORITY = 5;
+
+    /**
+     * Default pagination.
+     */
+    public static final int DEFAULT_PAGINATION = 0;
+
+
+    private Constants() {
     }
 }

@@ -27,11 +27,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.log4j.Logger;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -53,6 +53,7 @@ import com.stratio.crossdata.common.logicalplan.Filter;
 import com.stratio.crossdata.common.metadata.ColumnMetadata;
 import com.stratio.crossdata.common.metadata.ColumnType;
 import com.stratio.crossdata.common.metadata.ConnectorMetadata;
+import com.stratio.crossdata.common.metadata.DataType;
 import com.stratio.crossdata.common.metadata.IndexMetadata;
 import com.stratio.crossdata.common.metadata.IndexType;
 import com.stratio.crossdata.common.metadata.Operations;
@@ -63,6 +64,7 @@ import com.stratio.crossdata.common.statements.structures.Operator;
 import com.stratio.crossdata.common.statements.structures.Relation;
 import com.stratio.crossdata.common.statements.structures.Selector;
 import com.stratio.crossdata.common.statements.structures.StringSelector;
+import com.stratio.crossdata.common.utils.Constants;
 import com.stratio.crossdata.core.MetadataManagerTestHelper;
 import com.stratio.crossdata.core.query.IParsedQuery;
 import com.stratio.crossdata.core.query.MetadataParsedQuery;
@@ -78,11 +80,6 @@ import com.stratio.crossdata.core.query.StorageValidatedQuery;
  */
 public class PlannerTest extends PlannerBaseTest {
 
-    /**
-     * Class logger.
-     */
-    private static final Logger LOG = Logger.getLogger(PlannerTest.class);
-
     private ConnectorMetadata connector1 = null;
     private ConnectorMetadata connector2 = null;
 
@@ -92,8 +89,8 @@ public class PlannerTest extends PlannerBaseTest {
     private TableMetadata table2 = null;
     private TableMetadata table3 = null;
 
-    @BeforeClass
-    public void setUp() throws ManifestException {
+    @BeforeClass(dependsOnMethods = {"setUp"})
+    public void init() throws ManifestException {
         MetadataManagerTestHelper.HELPER.initHelper();
         DataStoreName dataStoreName = MetadataManagerTestHelper.HELPER.createTestDatastore();
 
@@ -110,6 +107,7 @@ public class PlannerTest extends PlannerBaseTest {
         operationsC1.add(Operations.UPDATE_PK_EQ);
         operationsC1.add(Operations.TRUNCATE_TABLE);
         operationsC1.add(Operations.DROP_TABLE);
+        operationsC1.add(Operations.PAGINATION);
 
         //Streaming connector.
         Set<Operations> operationsC2 = new HashSet<>();
@@ -119,12 +117,17 @@ public class PlannerTest extends PlannerBaseTest {
         operationsC2.add(Operations.SELECT_INNER_JOIN);
         operationsC2.add(Operations.SELECT_INNER_JOIN_PARTIALS_RESULTS);
 
-        connector1 = MetadataManagerTestHelper.HELPER.createTestConnector("TestConnector1", dataStoreName, new HashSet<ClusterName>(), operationsC1,
+        String strClusterName = "TestCluster1";
+        Map<ClusterName, Integer> clusterWithDefaultPriority = new LinkedHashMap<>();
+        clusterWithDefaultPriority.put(new ClusterName(strClusterName), Constants.DEFAULT_PRIORITY);
+
+        connector1 = MetadataManagerTestHelper.HELPER.createTestConnector("TestConnector1", dataStoreName,
+                        clusterWithDefaultPriority, operationsC1,
                 "actorRef1");
-        connector2 = MetadataManagerTestHelper.HELPER.createTestConnector("TestConnector2", dataStoreName, new HashSet<ClusterName>(), operationsC2,
+        connector2 = MetadataManagerTestHelper.HELPER.createTestConnector("TestConnector2", dataStoreName, clusterWithDefaultPriority, operationsC2,
                 "actorRef2");
 
-        clusterName = MetadataManagerTestHelper.HELPER.createTestCluster("TestCluster1", dataStoreName, connector1.getName(), connector2.getName());
+        clusterName = MetadataManagerTestHelper.HELPER.createTestCluster(strClusterName, dataStoreName, connector1.getName(), connector2.getName());
         CatalogName catalogName = MetadataManagerTestHelper.HELPER.createTestCatalog("demo").getName();
         createTestTables();
     }
@@ -136,21 +139,21 @@ public class PlannerTest extends PlannerBaseTest {
 
     public void createTestTables() {
         String[] columnNames1 = { "id", "user" };
-        ColumnType[] columnTypes1 = { ColumnType.INT, ColumnType.TEXT };
+        ColumnType[] columnTypes1 = { new ColumnType(DataType.INT), new ColumnType(DataType.TEXT) };
         String[] partitionKeys1 = { "id" };
         String[] clusteringKeys1 = { };
         table1 = MetadataManagerTestHelper.HELPER.createTestTable(clusterName, "demo", "table1",
                 columnNames1, columnTypes1, partitionKeys1, clusteringKeys1, null);
 
         String[] columnNames2 = { "id", "email" };
-        ColumnType[] columnTypes2 = { ColumnType.INT, ColumnType.TEXT };
+        ColumnType[] columnTypes2 = { new ColumnType(DataType.INT), new ColumnType(DataType.TEXT) };
         String[] partitionKeys2 = { "id" };
         String[] clusteringKeys2 = { };
         table2 = MetadataManagerTestHelper.HELPER.createTestTable(clusterName, "demo", "table2",
                 columnNames2, columnTypes2, partitionKeys2, clusteringKeys2, null);
 
         String[] columnNames3 = { "id_aux", "address" };
-        ColumnType[] columnTypes3 = { ColumnType.INT, ColumnType.TEXT };
+        ColumnType[] columnTypes3 = { new ColumnType(DataType.INT), new ColumnType(DataType.TEXT) };
         String[] partitionKeys3 = { "id_aux" };
         String[] clusteringKeys3 = { };
         table3 = MetadataManagerTestHelper.HELPER.createTestTable(clusterName, "demo", "table3",
@@ -301,7 +304,7 @@ public class PlannerTest extends PlannerBaseTest {
         columns.put(columnName, new ColumnMetadata(
                 columnName,
                 null,
-                ColumnType.TEXT));
+                new ColumnType(DataType.TEXT)));
         assertEquals(indexMetadata.getColumns().size(), columns.size(), "Column sizes differ");
         assertEquals(indexMetadata.getColumns().values().iterator().next().getColumnType(),
                 columns.values().iterator().next().getColumnType(),
@@ -323,7 +326,7 @@ public class PlannerTest extends PlannerBaseTest {
         ColumnMetadata colMetadata = new ColumnMetadata(
                 new ColumnName("demo", "table1", "user"),
                 null,
-                ColumnType.TEXT);
+                new ColumnType(DataType.TEXT));
         cols.put(colMetadata.getName(), colMetadata);
         IndexMetadata indexMetadata = new IndexMetadata(
                 indexName,
@@ -355,7 +358,7 @@ public class PlannerTest extends PlannerBaseTest {
         columns.put(columnName, new ColumnMetadata(
                 columnName,
                 null,
-                ColumnType.TEXT));
+                new ColumnType(DataType.TEXT)));
         assertEquals(indexMetadata.getColumns().size(), columns.size(), "Column sizes differ");
 
         ColumnMetadata columnMetadata = indexMetadata.getColumns().values().iterator().next();
@@ -448,6 +451,19 @@ public class PlannerTest extends PlannerBaseTest {
         assertEquals(queryWorkflow.getResultType(), ResultType.RESULTS, "Invalid result type");
         assertEquals(queryWorkflow.getExecutionType(), ExecutionType.SELECT, "Invalid execution type");
         assertEquals(queryWorkflow.getActorRef(), connector1.getActorRef(), "Wrong target actor");
+    }
+
+    @Test
+    public void pagination() {
+
+        String inputText = "SELECT * FROM demo.table1;";
+
+        QueryWorkflow queryWorkflow = (QueryWorkflow) getPlannedQuery(
+                inputText, "pagination", false, table1);
+
+        int expectedPagedSize = 5;
+
+        assertEquals(queryWorkflow.getWorkflow().getPagination(), expectedPagedSize, "Pagination plan failed.");
     }
 
 }

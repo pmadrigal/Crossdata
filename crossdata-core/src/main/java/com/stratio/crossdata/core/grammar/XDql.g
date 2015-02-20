@@ -178,6 +178,7 @@ fragment POINT: '.';
 // Case-insensitive keywords
 T_TRUNCATE: T R U N C A T E;
 T_CREATE: C R E A T E;
+T_REGISTER: R E G I S T E R;
 T_ALTER: A L T E R;
 T_NOT: N O T;
 T_WITH: W I T H;
@@ -303,6 +304,8 @@ T_BIGINT: B I G I N T;
 T_IMPORT: I M P O R T;
 T_DISCOVER: D I S C O V E R;
 T_METADATA: M E T A D A T A;
+T_PRIORITY: P R I O R I T Y;
+T_PAGINATION: P A G I N A T I O N;
 
 fragment LETTER: ('A'..'Z' | 'a'..'z');
 fragment DIGIT: '0'..'9';
@@ -377,12 +380,16 @@ alterClusterStatement returns [AlterClusterStatement acs]
 attachConnectorStatement returns [AttachConnectorStatement acs]
     @init{
         optionsJson = "";
+        int priority = 5;
+        int pagination = 0;
     }
     @after{
         $acs = new AttachConnectorStatement(new ConnectorName($connectorName.text),
-        new ClusterName($clusterName.text), optionsJson);
+        new ClusterName($clusterName.text), optionsJson, priority, pagination);
     }:
     T_ATTACH T_CONNECTOR connectorName=T_IDENT T_TO clusterName=T_IDENT (T_WITH (T_OPTIONS)? optionsJson=getJson)?
+    (T_AND T_PRIORITY T_EQUAL number=T_CONSTANT { priority = Integer.parseInt($number.text); } )?
+    (T_AND T_PAGINATION T_EQUAL pageSize=T_CONSTANT { pagination = Integer.parseInt($pageSize.text); } )?
 ;
 
 detachConnectorStatement returns [DetachConnectorStatement dcs]
@@ -522,8 +529,9 @@ createTableStatement returns [CreateTableStatement crtast]
         LinkedHashSet<ColumnName> partitionKey = new LinkedHashSet<>();
         LinkedHashSet<ColumnName> clusterKey = new LinkedHashSet<>();
         boolean ifNotExists = false;
+        boolean isExternal = false;
     }:
-    T_CREATE tableType=getTableType T_TABLE (T_IF T_NOT T_EXISTS {ifNotExists = true;})?
+    (T_CREATE | T_REGISTER {isExternal = true;}) tableType=getTableType T_TABLE (T_IF T_NOT T_EXISTS {ifNotExists = true;})?
     tablename=getTableName { if(!tablename.isCompletedName()) throwParsingException("Catalog is missing") ; }
     T_ON T_CLUSTER clusterID=T_IDENT
     T_START_PARENTHESIS
@@ -552,7 +560,7 @@ createTableStatement returns [CreateTableStatement crtast]
     {
         if(partitionKey.isEmpty()) throwParsingException("Primary Key definition missing");
         $crtast = new CreateTableStatement(tableType, tablename, new ClusterName($clusterID.text), columns,
-        partitionKey, clusterKey);
+        partitionKey, clusterKey, isExternal);
         $crtast.setProperties(j);
         $crtast.setIfNotExists(ifNotExists);
     }
@@ -564,6 +572,7 @@ getTableType returns [TableType tableType]
     }:
     ( T_EPHEMERAL { tableType = TableType.EPHEMERAL; } )?
 ;
+
 
 alterTableStatement returns [AlterTableStatement altast]
     @init{
@@ -701,11 +710,16 @@ importMetadataStatement returns [ImportMetadataStatement imst]
     }
 ;
 
+// ========================================================
+// CROSSDATA STATEMENT
+// ========================================================
+
 crossdataStatement returns [CrossdataStatement st]:
     (T_START_BRACKET
         ( gID=getGenericID { sessionCatalog = gID;} )?
     T_END_BRACKET T_COMMA)?
-    (st_nsnt  = insertIntoStatement { $st = st_nsnt;}
+    (
+    st_nsnt  = insertIntoStatement { $st = st_nsnt;}
     | st_slct = selectStatement { $st = st_slct;}
     | st_crta = createTableStatement { $st = st_crta;}
     | st_altt = alterTableStatement { $st = st_altt;}
@@ -723,7 +737,8 @@ crossdataStatement returns [CrossdataStatement st]:
     | st_decn = detachConnectorStatement { $st = st_decn;}
     | st_cixs = createIndexStatement { $st = st_cixs; }
     | st_dixs = dropIndexStatement { $st = st_dixs; }
-    | st_imst = importMetadataStatement { $st = st_imst; })
+    | st_imst = importMetadataStatement { $st = st_imst; }
+    )
 ;
 
 query returns [CrossdataStatement st]:
@@ -740,24 +755,28 @@ getDataType returns [ColumnType dataType]:
 ;
 
 getBasicType returns [ColumnType dataType]:
-    T_BIGINT { $dataType=ColumnType.BIGINT; }
-    | T_BOOL { $dataType=ColumnType.BOOLEAN; }
-    | T_BOOLEAN { $dataType=ColumnType.BOOLEAN; }
-    | T_DOUBLE { $dataType=ColumnType.DOUBLE; }
-    | T_FLOAT { $dataType=ColumnType.FLOAT; }
-    | T_INT { $dataType=ColumnType.INT; }
-    | T_INTEGER { $dataType=ColumnType.INT; }
-    | T_TEXT { $dataType=ColumnType.TEXT; }
-    | T_VARCHAR { $dataType=ColumnType.VARCHAR; }
+    T_BIGINT { $dataType=new ColumnType(DataType.BIGINT); }
+    | T_BOOL { $dataType=new ColumnType(DataType.BOOLEAN); }
+    | T_BOOLEAN { $dataType=new ColumnType(DataType.BOOLEAN); }
+    | T_DOUBLE { $dataType=new ColumnType(DataType.DOUBLE); }
+    | T_FLOAT { $dataType=new ColumnType(DataType.FLOAT); }
+    | T_INT { $dataType=new ColumnType(DataType.INT); }
+    | T_INTEGER { $dataType=new ColumnType(DataType.INT); }
+    | T_TEXT { $dataType=new ColumnType(DataType.TEXT); }
+    | T_VARCHAR { $dataType=new ColumnType(DataType.VARCHAR); }
+    | nativeType=T_IDENT { $dataType = new ColumnType(DataType.NATIVE);
+                           $dataType.setDBMapping($nativeType.text, Object.class);
+                           $dataType.setODBCType($nativeType.text);
+                         }
 ;
 
 getCollectionType returns [ColumnType dataType]:
-    T_SET { $dataType = ColumnType.SET; }
-    | T_LIST { $dataType = ColumnType.LIST; }
+    T_SET { $dataType = new ColumnType(DataType.SET); }
+    | T_LIST { $dataType = new ColumnType(DataType.LIST); }
 ;
 
 getMapType returns [ColumnType dataType]:
-    T_MAP { $dataType = ColumnType.MAP; }
+    T_MAP { $dataType = new ColumnType(DataType.MAP); }
 ;
 
 getOrdering[TableName tablename] returns [List<OrderByClause> orderByClauses]
@@ -855,9 +874,6 @@ getSelector[TableName tablename] returns [Selector s]
                 (T_COMMA selectN=getSelector[tablename] {params.add(selectN);})*
             )?
         T_END_PARENTHESIS { String functionStr = functionName;
-                            /*if(functionStr.equalsIgnoreCase("count") && (!params.toString().equalsIgnoreCase("[*]"))
-                             && (!params.toString().equalsIgnoreCase("[1]"))) throwParsingException("COUNT includes
-                             only accepts '*' or '1'");*/
                             s = new FunctionSelector(tablename, functionStr, params);}
         |
         (

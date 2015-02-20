@@ -43,6 +43,8 @@ import com.stratio.crossdata.common.exceptions.validation.ExistNameException;
 import com.stratio.crossdata.common.exceptions.validation.NotConnectionException;
 import com.stratio.crossdata.common.exceptions.validation.NotExistNameException;
 import com.stratio.crossdata.common.exceptions.validation.NotMatchDataTypeException;
+import com.stratio.crossdata.common.exceptions.validation.NotValidCatalogException;
+import com.stratio.crossdata.common.exceptions.validation.NotValidTableException;
 import com.stratio.crossdata.common.manifest.PropertyType;
 import com.stratio.crossdata.common.metadata.ClusterMetadata;
 import com.stratio.crossdata.common.metadata.ColumnMetadata;
@@ -50,6 +52,8 @@ import com.stratio.crossdata.common.metadata.ColumnType;
 import com.stratio.crossdata.common.metadata.ConnectorAttachedMetadata;
 import com.stratio.crossdata.common.metadata.ConnectorMetadata;
 import com.stratio.crossdata.common.metadata.DataStoreMetadata;
+import com.stratio.crossdata.common.metadata.DataType;
+import com.stratio.crossdata.common.metadata.Operations;
 import com.stratio.crossdata.common.statements.structures.ColumnSelector;
 import com.stratio.crossdata.common.statements.structures.FloatingPointSelector;
 import com.stratio.crossdata.common.statements.structures.IntegerSelector;
@@ -121,6 +125,8 @@ public class Validator {
             case MUST_NOT_EXIST_DATASTORE:
                 validateDatastore(parsedQuery.getStatement(), false);
                 break;
+            case VALID_DATASTORE_MANIFEST:
+                break;
             case VALID_CLUSTER_OPTIONS:
                 validateOptions(parsedQuery.getStatement());
                 break;
@@ -129,6 +135,8 @@ public class Validator {
                 break;
             case MUST_EXIST_ATTACH_CONNECTOR_CLUSTER:
                 validateConnectorAttachedRefs(parsedQuery.getStatement());
+                break;
+            case VALID_CONNECTOR_MANIFEST:
                 break;
             case MUST_EXIST_PROPERTIES:
                 validateExistsProperties(parsedQuery.getStatement());
@@ -157,6 +165,13 @@ public class Validator {
             case MUST_BE_UNIQUE_DATASTORE:
                 validatePreviousAttachment(parsedQuery.getStatement());
                 break;
+            case PAGINATION_SUPPORT:
+                validatePaginationSupport(parsedQuery.getStatement());
+            case VALIDATE_PRIORITY:
+                validatePriority(parsedQuery.getStatement());
+            case VALIDATE_SCOPE:
+                validateScope(parsedQuery.getStatement());
+                break;
             default:
                 break;
             }
@@ -177,6 +192,56 @@ public class Validator {
         }
 
         return validatedQuery;
+    }
+
+
+    private void validatePaginationSupport(CrossdataStatement crossdataStatement) throws BadFormatException {
+        AttachConnectorStatement acs = (AttachConnectorStatement) crossdataStatement;
+        int pageSize = acs.getPagination();
+        if (pageSize > 0) {
+            ConnectorName connectorName = acs.getConnectorName();
+            ConnectorMetadata connector = MetadataManager.MANAGER.getConnector(connectorName);
+            Set<Operations> supportedOperations = connector.getSupportedOperations();
+            if (!supportedOperations.contains(Operations.PAGINATION)) {
+                throw new BadFormatException("Pagination is not supported by the connector " + connectorName);
+            }
+        }
+    }
+
+    private void validatePriority(CrossdataStatement statement) throws BadFormatException {
+        if (statement instanceof AttachConnectorStatement) {
+            Integer priority = ((AttachConnectorStatement) statement).getPriority();
+
+            if (priority < 1 || priority > 9) {
+                throw new BadFormatException("The priority is out of range: Must be [1-9]");
+
+            }
+        }
+    }
+
+    /**
+     * Checks if the columns used in the query are within the scope of the table affected by the statement
+     * @param statement the Crossdata statement
+     */
+    private void validateScope(CrossdataStatement statement) throws ValidationException{
+
+        if (statement instanceof StorageStatement) {
+            StorageStatement storageStatement = (StorageStatement) statement;
+            TableName affectedTableName = storageStatement.getTableName();
+
+            for (ColumnName columnName : storageStatement.getColumns()) {
+                if( columnName.getTableName() != null) {
+                    if (!columnName.getTableName().getName().equals(affectedTableName.getName())) {
+                        throw new NotValidTableException(columnName.getTableName());
+                    }
+                    if (columnName.getTableName().getCatalogName() != null && !columnName.getTableName()
+                                    .getCatalogName().getName().equals(affectedTableName.getCatalogName().getName())) {
+                        throw new NotValidCatalogException(columnName.getTableName().getCatalogName());
+                    }
+                }
+            }
+        }
+
     }
 
     private void validatePreviousAttachment(CrossdataStatement statement) throws BadFormatException {
@@ -582,18 +647,19 @@ public class Validator {
             badFormatException = new BadFormatException("Asterisk not supported in relations.");
             break;
         case BOOLEAN:
-            if (columnMetadata.getColumnType() != ColumnType.BOOLEAN) {
+            if (columnMetadata.getColumnType().getDataType() != DataType.BOOLEAN) {
                 notMatchDataTypeException = new NotMatchDataTypeException(columnMetadata.getName());
             }
             break;
         case STRING:
-            if (columnMetadata.getColumnType() != ColumnType.TEXT) {
+            if ((columnMetadata.getColumnType().getDataType() != DataType.TEXT) &&
+                    (columnMetadata.getColumnType().getDataType() != DataType.NATIVE)) {
                 notMatchDataTypeException = new NotMatchDataTypeException(columnMetadata.getName());
             }
             break;
         case INTEGER:
-            if (columnMetadata.getColumnType() != ColumnType.INT &&
-                    columnMetadata.getColumnType() != ColumnType.BIGINT) {
+            if ((columnMetadata.getColumnType().getDataType() != DataType.INT) &&
+                    (columnMetadata.getColumnType().getDataType() != DataType.BIGINT)) {
                 if(tryConversion){
                     resultingSelector = convertIntegerSelector(
                             (IntegerSelector) querySelector,
@@ -605,8 +671,8 @@ public class Validator {
             }
             break;
         case FLOATING_POINT:
-            if (columnMetadata.getColumnType() != ColumnType.FLOAT &&
-                    columnMetadata.getColumnType() != ColumnType.DOUBLE) {
+            if ((columnMetadata.getColumnType().getDataType() != DataType.FLOAT) &&
+                    (columnMetadata.getColumnType().getDataType() != DataType.DOUBLE)) {
                 notMatchDataTypeException = new NotMatchDataTypeException(columnMetadata.getName());
             }
             break;
@@ -628,7 +694,7 @@ public class Validator {
     private Selector convertIntegerSelector(IntegerSelector querySelector, ColumnType columnType, ColumnName name)
             throws NotMatchDataTypeException {
         Selector resultingSelector;
-        if(columnType == ColumnType.DOUBLE || columnType == ColumnType.FLOAT){
+        if(columnType.getDataType() == DataType.DOUBLE || columnType.getDataType() == DataType.FLOAT){
             resultingSelector = new FloatingPointSelector(querySelector.getTableName(), querySelector.getValue());
         } else {
             throw new NotMatchDataTypeException(name);
