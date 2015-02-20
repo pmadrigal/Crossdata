@@ -227,7 +227,7 @@ public class InMemoryQueryEngine implements IQueryEngine{
      * @return The equivalent InMemory selector.
      */
     private InMemorySelector transformCrossdataSelector(Selector selector){
-        InMemorySelector result = null;
+        InMemorySelector result;
         if(FunctionSelector.class.isInstance(selector)){
             FunctionSelector xdFunction = FunctionSelector.class.cast(selector);
             String name = xdFunction.getFunctionName();
@@ -271,22 +271,6 @@ public class InMemoryQueryEngine implements IQueryEngine{
                     columnName, null, columnType);
             columnMetadataList.add(metadata);
         }
-
-        /*final List<ColumnName> outputColumns = selectStep.getColumnOrder();
-
-        for(ColumnName columnName : outputColumns){
-            ColumnSelector selector = new ColumnSelector(columnName);
-            String alias = selectStep.getColumnMap().get(selector);
-            if(alias == null){
-                alias = columnName.getName();
-            }
-            columnAlias.add(alias);
-            columnName.setAlias(alias);
-            ColumnType columnType = selectStep.getTypeMapFromColumnName().get(selector);
-            ColumnMetadata metadata = new ColumnMetadata(
-                    columnName, null, columnType);
-            columnMetadataList.add(metadata);
-        }*/
 
         //Store the metadata information
         crossdataResults.setColumnMetadata(columnMetadataList);
@@ -397,6 +381,52 @@ public class InMemoryQueryEngine implements IQueryEngine{
     public void asyncExecute(String queryId, LogicalWorkflow workflow, IResultHandler resultHandler)
             throws ConnectorException {
         throw new UnsupportedException("Async query execution is not supported");
+    }
+
+    @Override public void pagedExecute(
+            String queryId,
+            LogicalWorkflow workflow,
+            IResultHandler resultHandler,
+            int pageSize) throws ConnectorException {
+        QueryResult queryResult = execute(workflow);
+        ResultSet resultSet = queryResult.getResultSet();
+        List<Row> rows = resultSet.getRows();
+        int counter = 0;
+        int page = 0;
+        List<Row> partialRows = new ArrayList<>();
+        for(Row row: rows){
+            if(counter >= pageSize){
+                QueryResult partialQueryResult = buildPartialResult(
+                        partialRows,
+                        queryResult.getResultSet().getColumnMetadata(),
+                        queryId,
+                        page,
+                        false);
+                resultHandler.processResult(partialQueryResult);
+                counter = 0;
+                page++;
+                partialRows = new ArrayList<>();
+            }
+            partialRows.add(row);
+            counter++;
+        }
+        QueryResult partialQueryResult = buildPartialResult(
+                partialRows,
+                queryResult.getResultSet().getColumnMetadata(),
+                queryId,
+                page,
+                true);
+        resultHandler.processResult(partialQueryResult);
+    }
+
+    QueryResult buildPartialResult(List<Row> partialRows, List<ColumnMetadata> columnsMetadata, String queryId,
+            int page, boolean lastResult){
+        ResultSet partialResultSet = new ResultSet();
+        partialResultSet.setRows(partialRows);
+        partialResultSet.setColumnMetadata(columnsMetadata);
+        QueryResult partialQueryResult = QueryResult.createQueryResult(partialResultSet, page, lastResult);
+        partialQueryResult.setQueryId(queryId);
+        return partialQueryResult;
     }
 
     @Override

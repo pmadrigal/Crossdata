@@ -49,6 +49,7 @@ import com.stratio.crossdata.common.metadata.ColumnType;
 import com.stratio.crossdata.common.metadata.ConnectorAttachedMetadata;
 import com.stratio.crossdata.common.metadata.ConnectorMetadata;
 import com.stratio.crossdata.common.metadata.DataStoreMetadata;
+import com.stratio.crossdata.common.metadata.DataType;
 import com.stratio.crossdata.common.metadata.IndexMetadata;
 import com.stratio.crossdata.common.metadata.TableMetadata;
 import com.stratio.crossdata.common.statements.structures.Selector;
@@ -127,6 +128,8 @@ public class MetadataManagerTest {
         // Create catalog
         CatalogName catalogName = MetadataManagerTestHelper.HELPER.createTestCatalog("testCatalog").getName();
 
+
+
         //Check catalog persistence
         assertEquals(MetadataManager.MANAGER.getCatalog(catalogName).getName(), catalogName,
                 "Expected: " + catalogName + System.lineSeparator() +
@@ -145,7 +148,7 @@ public class MetadataManagerTest {
 
         // Create and add test table to the MetadataManager
         String[] columnNames1 = { "id", "user" };
-        ColumnType[] columnTypes1 = { ColumnType.INT, ColumnType.TEXT };
+        ColumnType[] columnTypes1 = { new ColumnType(DataType.INT), new ColumnType(DataType.TEXT) };
         String[] partitionKeys1 = { "id" };
         String[] clusteringKeys1 = { };
         TableMetadata table = MetadataManagerTestHelper.HELPER.createTestTable(clusterName, catalogName.getName(),
@@ -304,10 +307,13 @@ public class MetadataManagerTest {
 
     @Test(dependsOnMethods = { "testCreateCatalog" } )
     public void testGetCatalogs() {
+        // TODO We should avoid dependencies between tests.
+
         String catalog = "catalogTest";
         MetadataManagerTestHelper.HELPER.createTestCatalog(catalog);
 
         List<CatalogMetadata> catalogs = MetadataManager.MANAGER.getCatalogs();
+
 
         int expectedNumber = 1;
 
@@ -412,12 +418,14 @@ public class MetadataManagerTest {
     @Test
     public void testGetConnectors() {
 
+        //TODO there should be no dependency with other tests.
+
         testCreateConnector();
 
         Status status = Status.ONLINE;
         List<ConnectorMetadata> connectors = MetadataManager.MANAGER.getConnectors(status);
 
-        int expectedSize = 4;
+        int expectedSize =  4;
 
         assertTrue(connectors.size() == expectedSize,
                 "Connectors size is wrong." + System.lineSeparator() +
@@ -481,7 +489,7 @@ public class MetadataManagerTest {
         String catalogName = "catalogTest";
         String tableName = "tableTest";
         String[] columnNames = { "firstCol", "SecondCol" };
-        ColumnType[] columnTypes = { ColumnType.INT, ColumnType.TEXT };
+        ColumnType[] columnTypes = { new ColumnType(DataType.INT), new ColumnType(DataType.TEXT) };
         String[] partitionKeys = { "firstCol" };
         String[] clusteringKeys = new String[0];
         MetadataManagerTestHelper.HELPER.createTestTable(clusterName, catalogName, tableName, columnNames, columnTypes,

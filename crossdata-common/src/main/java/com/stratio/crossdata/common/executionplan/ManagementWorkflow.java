@@ -37,6 +37,7 @@ import com.stratio.crossdata.communication.ManagementOperation;
  */
 public class ManagementWorkflow extends ExecutionWorkflow {
 
+    private static final long serialVersionUID = -7714871332885230278L;
     /**
      * Name of the cluster.
      */
@@ -62,6 +63,12 @@ public class ManagementWorkflow extends ExecutionWorkflow {
      * A JSON with the options.
      */
     private Map<Selector, Selector> options = null;
+    private int pageSize;
+
+    /**
+     * Connector priority for the associated cluster.
+     */
+    private Integer priority = null;
 
     /**
      * Class constructor.
@@ -101,6 +108,15 @@ public class ManagementWorkflow extends ExecutionWorkflow {
         this.options = options;
     }
 
+
+    public void setPageSize(int pageSize) {
+        this.pageSize = pageSize;
+
+    }
+    public void setPriority(int priority) {
+        this.priority = priority;
+    }
+
     /**
      * Determines the the type of operation in a workflow.
      * @return A {@link com.stratio.crossdata.communication.ManagementOperation} .
@@ -112,7 +128,7 @@ public class ManagementWorkflow extends ExecutionWorkflow {
         } else if (ExecutionType.DETACH_CLUSTER.equals(this.executionType)) {
             result = new DetachCluster(queryId, this.clusterName, this.datastoreName);
         } else if (ExecutionType.ATTACH_CONNECTOR.equals(this.executionType)) {
-            result = new AttachConnector(queryId, this.clusterName, this.connectorName, this.options);
+            result = new AttachConnector(queryId, this.clusterName, this.connectorName, this.options,  this.priority, this.pageSize);
         } else if (ExecutionType.DETACH_CONNECTOR.equals(this.executionType)) {
             result = new DetachConnector(queryId, this.clusterName, this.connectorName);
         } else if (ExecutionType.ALTER_CLUSTER.equals(this.executionType)) {

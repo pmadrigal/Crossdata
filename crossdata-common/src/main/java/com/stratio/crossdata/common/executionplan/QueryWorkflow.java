@@ -18,19 +18,20 @@
 
 package com.stratio.crossdata.common.executionplan;
 
-
 import com.stratio.crossdata.common.logicalplan.LogicalStep;
 import com.stratio.crossdata.common.logicalplan.LogicalWorkflow;
 import com.stratio.crossdata.common.logicalplan.Window;
 import com.stratio.crossdata.communication.AsyncExecute;
 import com.stratio.crossdata.communication.Execute;
 import com.stratio.crossdata.communication.ExecuteOperation;
+import com.stratio.crossdata.communication.PagedExecute;
 
 /**
  * Execution step for query operations.
  */
 public class QueryWorkflow extends ExecutionWorkflow {
 
+    private static final long serialVersionUID = -600963332114323650L;
     /**
      * Workflow to be executed.
      */
@@ -39,7 +40,7 @@ public class QueryWorkflow extends ExecutionWorkflow {
     /**
      * Class constructor.
      *
-     * @param queryId Query identifer.
+     * @param queryId Query identifier.
      * @param actorRef      Target actor reference.
      * @param executionType Type of execution.
      * @param type          Type of results.
@@ -78,6 +79,9 @@ public class QueryWorkflow extends ExecutionWorkflow {
         //Look for window operators.
         if(checkStreaming(workflow.getLastStep())) {
             return new AsyncExecute(queryId, workflow);
+        }
+        if(workflow.getPagination() > 0){
+            return new PagedExecute(queryId, workflow, workflow.getPagination());
         }
         return new Execute(queryId, workflow);
     }

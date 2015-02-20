@@ -31,6 +31,7 @@ import java.util.Set;
 
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.stratio.crossdata.common.data.CatalogName;
@@ -55,6 +56,7 @@ import com.stratio.crossdata.common.metadata.ColumnType;
 import com.stratio.crossdata.common.metadata.ConnectorAttachedMetadata;
 import com.stratio.crossdata.common.metadata.ConnectorMetadata;
 import com.stratio.crossdata.common.metadata.DataStoreMetadata;
+import com.stratio.crossdata.common.metadata.DataType;
 import com.stratio.crossdata.common.metadata.IndexMetadata;
 import com.stratio.crossdata.common.metadata.IndexType;
 import com.stratio.crossdata.common.metadata.TableMetadata;
@@ -62,6 +64,7 @@ import com.stratio.crossdata.common.result.MetadataResult;
 import com.stratio.crossdata.common.statements.structures.IntegerSelector;
 import com.stratio.crossdata.common.statements.structures.Selector;
 import com.stratio.crossdata.common.statements.structures.StringSelector;
+import com.stratio.crossdata.common.utils.Constants;
 import com.stratio.crossdata.communication.ManagementOperation;
 import com.stratio.crossdata.core.MetadataManagerTestHelper;
 import com.stratio.crossdata.core.metadata.MetadataManager;
@@ -71,7 +74,13 @@ public class CoordinatorTest {
     @BeforeClass
     public void setUp() throws ManifestException {
         MetadataManagerTestHelper.HELPER.initHelper();
+    }
+
+    @BeforeMethod
+    public void createEnvironment() throws ManifestException {
         MetadataManagerTestHelper.HELPER.createTestEnvironment();
+        // Create and add a test datastore metadata to the metadataManager
+        MetadataManagerTestHelper.HELPER.insertDataStore("datastoreTest", "production");
     }
 
     @AfterClass
@@ -87,9 +96,6 @@ public class CoordinatorTest {
     @Test
     public void testAttachCluster() throws Exception {
 
-        // Create and add a test datastore metadata to the metadataManager
-        DataStoreMetadata datastoreTest = MetadataManagerTestHelper.HELPER.insertDataStore("datastoreTest", "production");
-
         ManagementWorkflow workflow = new ManagementWorkflow("", null, ExecutionType.ATTACH_CLUSTER,
                 ResultType.RESULTS);
         workflow.setClusterName(new ClusterName("clusterTest"));
@@ -99,7 +105,7 @@ public class CoordinatorTest {
         ManagementOperation op = workflow.createManagementOperationMessage();
         coordinator.executeManagementOperation(op);
         // Check that changes persisted in the MetadataManager ("datastoreTest" datastore)
-        datastoreTest = MetadataManager.MANAGER.getDataStore(new DataStoreName("dataStoreTest"));
+        DataStoreMetadata datastoreTest = MetadataManager.MANAGER.getDataStore(new DataStoreName("dataStoreTest"));
         Map<ClusterName, ClusterAttachedMetadata> clusterAttachedRefsTest =
                 datastoreTest.getClusterAttachedRefs();
         boolean found = false;
@@ -124,9 +130,6 @@ public class CoordinatorTest {
     @Test
     public void testDetachCluster() throws Exception {
 
-        // Create and add a test datastore metadata to the metadataManager
-        DataStoreMetadata datastoreTest = MetadataManagerTestHelper.HELPER.insertDataStore("datastoreTest", "production");
-
         ManagementWorkflow workflow = new ManagementWorkflow("", null, ExecutionType.DETACH_CLUSTER,
                 ResultType.RESULTS);
         workflow.setClusterName(new ClusterName("clusterTest"));
@@ -136,7 +139,7 @@ public class CoordinatorTest {
         ManagementOperation op = workflow.createManagementOperationMessage();
         coordinator.executeManagementOperation(op);
         // Check that changes persisted in the MetadataManager ("datastoreTest" datastore)
-        datastoreTest = MetadataManager.MANAGER.getDataStore(new DataStoreName("dataStoreTest"));
+        DataStoreMetadata datastoreTest = MetadataManager.MANAGER.getDataStore(new DataStoreName("dataStoreTest"));
         Map<ClusterName, ClusterAttachedMetadata> clusterAttachedRefsTest =
                 datastoreTest.getClusterAttachedRefs();
         boolean found = false;
@@ -202,6 +205,7 @@ public class CoordinatorTest {
         managementWorkflow.setConnectorName(connectorName);
         options.put(new StringSelector("Limit"), new IntegerSelector(100));
         managementWorkflow.setOptions(options);
+        managementWorkflow.setPriority(Constants.DEFAULT_PRIORITY);
 
         Coordinator coordinator = new Coordinator();
 
@@ -267,7 +271,7 @@ public class CoordinatorTest {
 
         TableName tableName = new TableName(catalog, tableString);
         String[] columnNames1 = { "id", "user" };
-        ColumnType[] columnTypes = { ColumnType.INT, ColumnType.TEXT };
+        ColumnType[] columnTypes = { new ColumnType(DataType.INT), new ColumnType(DataType.TEXT) };
         String[] partitionKeys = { "id" };
         String[] clusteringKeys = { };
         TableMetadata tableMetadata = MetadataManagerTestHelper.HELPER.defineTable(
@@ -312,14 +316,15 @@ public class CoordinatorTest {
 
         TableName tableName = new TableName(catalog, table);
         String[] columnNames1 = { "id", "user" };
-        ColumnType[] columnTypes = { ColumnType.INT, ColumnType.TEXT };
+        ColumnType[] columnTypes = { new ColumnType(DataType.INT), new ColumnType(DataType.TEXT) };
         String[] partitionKeys = { "id" };
         String[] clusteringKeys = { };
 
         Set<IndexMetadata> indexes = new HashSet<>();
         IndexName indexName = new IndexName(new ColumnName(catalog, table, index));
         Map<ColumnName, ColumnMetadata> columns = new HashMap<>();
-        ColumnMetadata column = new ColumnMetadata(new ColumnName(catalog, table, "user"), null, ColumnType.TEXT);
+        ColumnMetadata column = new ColumnMetadata(new ColumnName(catalog, table, "user"), null,
+                new ColumnType(DataType.TEXT));
         columns.put(column.getName(), column);
         IndexType indexType = IndexType.DEFAULT;
         Map<Selector, Selector> options = new HashMap<>();

@@ -35,6 +35,8 @@ import com.stratio.crossdata.common.exceptions.validation.BadFormatException;
 import com.stratio.crossdata.common.exceptions.validation.NotExistNameException;
 import com.stratio.crossdata.common.exceptions.validation.NotMatchDataTypeException;
 import com.stratio.crossdata.common.exceptions.validation.NotValidColumnException;
+import com.stratio.crossdata.common.exceptions.validation.NotValidTableException;
+import com.stratio.crossdata.common.exceptions.validation.NotValidCatalogException;
 import com.stratio.crossdata.common.exceptions.validation.YodaConditionException;
 import com.stratio.crossdata.common.metadata.ColumnMetadata;
 import com.stratio.crossdata.common.metadata.ColumnType;
@@ -301,8 +303,7 @@ public class Normalizator {
                 tableFound = tableNamesIterator.next().getQualifiedName().equals(expectedTableName);
             }
             if (!tableFound) {
-                throw new BadFormatException(
-                                "The column [" + expectedTableName + "] is not within the scope of the query");
+                throw new NotValidTableException("The column [" + expectedTableName + "] is not within the scope of the query");
             }
         }
     }
@@ -387,9 +388,11 @@ public class Normalizator {
             checkRightSelector(columnSelector.getName(), relation.getOperator(), relation.getRightTerm());
             break;
         case RELATION:
-        case FUNCTION:
         case ASTERISK:
             throw new BadFormatException("Not supported yet.");
+        case FUNCTION:
+            break;
+
         }
     }
 
@@ -529,7 +532,28 @@ public class Normalizator {
             case COLUMN:
                 ColumnSelector columnSelector = (ColumnSelector) selector;
                 checkColumnSelector(columnSelector);
-                columnSelector.setTableName(firstTableName);
+
+                //check with selectFromTables to add the secondTableName
+                Iterator<TableName> tableNameIterator = fields.getTableNames().iterator();
+
+                TableName currentTableName = null;
+                boolean tableFound=false;
+                while (tableNameIterator.hasNext() && !tableFound){
+                    currentTableName = tableNameIterator.next();
+                    if( columnSelector.getTableName() != null) {
+                        if (!columnSelector.getName().getTableName().getName().equals(currentTableName.getName()) && ! tableNameIterator.hasNext()) {
+                            throw new NotValidTableException(columnSelector.getName().getTableName());
+                        }else{
+                            if (columnSelector.getName().getTableName().getCatalogName() != null && !columnSelector.getName().getTableName().getCatalogName().getName().equals(currentTableName.getCatalogName().getName()) && ! tableNameIterator.hasNext()) {
+                                throw new NotValidCatalogException(columnSelector.getTableName().getCatalogName());
+                            }
+                            tableFound = true;
+                        }
+                    }
+                }
+
+                columnSelector.setTableName(currentTableName);
+
                 result.add(columnSelector);
                 break;
             case ASTERISK:
@@ -551,7 +575,7 @@ public class Normalizator {
      * @param functionSelector The includes Selector to validate.
      * @throws ValidationException
      */
-    public void checkFunctionSelector(FunctionSelector functionSelector) throws ValidationException {
+    private void checkFunctionSelector(FunctionSelector functionSelector) throws ValidationException {
         // Check columns
         List<Selector> normalizeSelector = checkListSelector(functionSelector.getFunctionColumns());
         functionSelector.getFunctionColumns().clear();
@@ -582,7 +606,7 @@ public class Normalizator {
 
     private SelectorType convertMetadataTypeToSelectorType(ColumnType columnType) throws ValidationException {
         SelectorType selectorType = null;
-        switch (columnType) {
+        switch (columnType.getDataType()) {
         case INT:
         case BIGINT:
             selectorType = SelectorType.INTEGER;
@@ -609,7 +633,7 @@ public class Normalizator {
 
     private void checkCompatibility(ColumnMetadata column, Operator operator, SelectorType valueType)
                     throws ValidationException {
-        switch (column.getColumnType()) {
+        switch (column.getColumnType().getDataType()) {
         case BOOLEAN:
             checkBooleanCompatibility(column, operator, valueType);
             break;

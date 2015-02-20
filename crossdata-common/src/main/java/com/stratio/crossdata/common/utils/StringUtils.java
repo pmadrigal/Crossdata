@@ -19,6 +19,7 @@
 package com.stratio.crossdata.common.utils;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -36,6 +37,7 @@ import org.codehaus.jackson.map.SerializationConfig;
 
 import com.stratio.crossdata.common.data.TableName;
 import com.stratio.crossdata.common.metadata.ColumnType;
+import com.stratio.crossdata.common.metadata.DataType;
 import com.stratio.crossdata.common.statements.structures.BooleanSelector;
 import com.stratio.crossdata.common.statements.structures.FloatingPointSelector;
 import com.stratio.crossdata.common.statements.structures.IntegerSelector;
@@ -49,7 +51,9 @@ import difflib.PatchFailedException;
 /**
  * Utility class for String transformation operations.
  */
-public final class StringUtils {
+public final class StringUtils implements Serializable {
+
+    private static final long serialVersionUID = 4917945078917981844L;
 
     /**
      * Private constructor as StringUtils is a utility class.
@@ -156,25 +160,25 @@ public final class StringUtils {
      */
 
     public static ColumnType convertJavaTypeToXdType(String javaType) {
-        ColumnType ct = ColumnType.NATIVE;
+        ColumnType ct = new ColumnType(DataType.NATIVE);
         if (javaType.equalsIgnoreCase("Long")) {
-            ct = ColumnType.BIGINT;
+            ct = new ColumnType(DataType.BIGINT);
         } else if (javaType.equalsIgnoreCase("Boolean")) {
-            ct = ColumnType.BOOLEAN;
+            ct = new ColumnType(DataType.BOOLEAN);
         } else if (javaType.equalsIgnoreCase("Double")) {
-            ct = ColumnType.DOUBLE;
+            ct = new ColumnType(DataType.DOUBLE);
         } else if (javaType.equalsIgnoreCase("Float")) {
-            ct = ColumnType.DOUBLE;
+            ct = new ColumnType(DataType.DOUBLE);
         } else if (javaType.equalsIgnoreCase("Integer")) {
-            ct = ColumnType.INT;
+            ct = new ColumnType(DataType.INT);
         } else if (javaType.equalsIgnoreCase("String")) {
-            ct = ColumnType.TEXT;
+            ct = new ColumnType(DataType.TEXT);
         } else if (javaType.equalsIgnoreCase("Set")) {
-            ct = ColumnType.SET;
+            ct = new ColumnType(DataType.SET);
         } else if (javaType.equalsIgnoreCase("List")) {
-            ct = ColumnType.LIST;
-        } else if (javaType.equalsIgnoreCase("MAP")) {
-            ct = ColumnType.MAP;
+            ct = new ColumnType(DataType.LIST);
+        } else if (javaType.equalsIgnoreCase("Map")) {
+            ct = new ColumnType(DataType.MAP);
         }
         return ct;
     }
@@ -255,28 +259,28 @@ public final class StringUtils {
      * @return A {@link com.stratio.crossdata.common.metadata.ColumnType}.
      */
     public static ColumnType convertXdTypeToColumnType(String xdType) {
-        ColumnType ct = null;
+        ColumnType ct = new ColumnType(DataType.NATIVE);
         String stringType = xdType.replace("Tuple", "").replace("[", "").replace("]", "").trim();
         if (stringType.equalsIgnoreCase("BigInt")) {
-            ct = ColumnType.BIGINT;
+            ct = new ColumnType(DataType.BIGINT);
         } else if (stringType.equalsIgnoreCase("Bool") || stringType.equalsIgnoreCase("Boolean")) {
-            ct = ColumnType.BOOLEAN;
+            ct = new ColumnType(DataType.BOOLEAN);
         } else if (stringType.equalsIgnoreCase("Double")) {
-            ct = ColumnType.DOUBLE;
+            ct = new ColumnType(DataType.DOUBLE);
         } else if (stringType.equalsIgnoreCase("Float")) {
-            ct = ColumnType.FLOAT;
+            ct = new ColumnType(DataType.FLOAT);
         } else if (stringType.equalsIgnoreCase("Int") || stringType.equalsIgnoreCase("Integer")) {
-            ct = ColumnType.INT;
+            ct = new ColumnType(DataType.INT);
         } else if (stringType.equalsIgnoreCase("Text")) {
-            ct = ColumnType.TEXT;
+            ct = new ColumnType(DataType.TEXT);
         } else if (stringType.equalsIgnoreCase("Varchar")) {
-            ct = ColumnType.VARCHAR;
+            ct = new ColumnType(DataType.VARCHAR);
         } else if (stringType.equalsIgnoreCase("Set")) {
-            ct = ColumnType.SET;
+            ct = new ColumnType(DataType.SET);
         } else if (stringType.equalsIgnoreCase("List")) {
-            ct = ColumnType.LIST;
+            ct = new ColumnType(DataType.LIST);
         } else if (stringType.equalsIgnoreCase("Map")) {
-            ct = ColumnType.MAP;
+            ct = new ColumnType(DataType.MAP);
         }
         return ct;
     }
@@ -291,5 +295,41 @@ public final class StringUtils {
                 .replace("Tuple[", "")
                 .replace("]", "")
                 .trim();
+    }
+
+    public static Map<String, Object> convertJsonToMap(String json) {
+        Map<String, Object> options = new LinkedHashMap<>();
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.configure(JsonParser.Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
+        mapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
+        JsonFactory factory = mapper.getJsonFactory();
+        JsonParser jp;
+        try {
+            jp = factory.createJsonParser(json);
+            JsonNode root = mapper.readTree(jp);
+            Iterator<Map.Entry<String, JsonNode>> iter = root.getFields();
+            while (iter.hasNext()) {
+                Map.Entry<String, JsonNode> entry = iter.next();
+                Object obj = convertJsonNodeToJavaType(entry.getValue());
+                options.put(entry.getKey(), obj);
+            }
+        } catch (IOException e) {
+            LOG.error(e);
+        }
+        return options;
+    }
+
+    private static Object convertJsonNodeToJavaType(JsonNode jsonNode) {
+        Object obj;
+        if (jsonNode.isBigDecimal() || jsonNode.isDouble()) {
+            obj = jsonNode.getDoubleValue();
+        } else if (jsonNode.isBoolean()) {
+            obj = jsonNode.getBooleanValue();
+        } else if (jsonNode.isInt() || jsonNode.isBigInteger() || jsonNode.isLong()) {
+            obj = jsonNode.getIntValue();
+        } else {
+            obj = jsonNode.getTextValue();
+        }
+        return obj;
     }
 }

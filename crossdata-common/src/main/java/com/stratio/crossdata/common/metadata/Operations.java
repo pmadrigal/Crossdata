@@ -561,7 +561,17 @@ public enum Operations {
      * The engine supports {@link com.stratio.crossdata.common.logicalplan.PartialResults} operations
      * to read a list of partial results.
      */
-    PARTIAL_RESULTS("PARTIAL_RESULTS");
+    PARTIAL_RESULTS("PARTIAL_RESULTS"),
+
+    /**
+     * The engine supports chunking the result of a Select query.
+     */
+    PAGINATION("PAGINATION"),
+
+    /**
+     * The engine supports direct execution of SQL queries
+     */
+   SQL_DIRECT("SQL_DIRECT");
 
     private String operationsStr;
 

@@ -16,20 +16,29 @@
  * under the License.
  */
 
-package com.stratio.crossdata.common.data;
+package com.stratio.crossdata.common.exceptions.validation;
+
+import com.stratio.crossdata.common.data.TableName;
+import com.stratio.crossdata.common.exceptions.ValidationException;
+
 
 /**
- * SuperClass that contains the definition of names of Catalogs, Cluster, Connectors, Datastore and node names.
+ * Exception Class that is thrown when a table is not valid in validator phase.
  */
-public abstract class FirstLevelName extends Name {
-
-    private static final long serialVersionUID = 599258431452757425L;
+public class NotValidTableException extends ValidationException {
+    /**
+     * Constructor class.
+     * @param name The name of the column affected.
+     */
+    public NotValidTableException(TableName name) {
+        super(name + " is not valid table in this sentence");
+    }
 
     /**
-     * Return if the name is qualified or not.
-     * @return A Boolean.
+     * Instantiate a NotValidTableException from a message.
+     * @param message The message.
      */
-    public boolean isCompletedName() {
-        return true;
+    public NotValidTableException(String message){
+        super(message);
     }
 }

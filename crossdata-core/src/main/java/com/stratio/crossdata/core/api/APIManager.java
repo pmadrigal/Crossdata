@@ -38,10 +38,8 @@ import com.stratio.crossdata.common.ask.APICommand;
 import com.stratio.crossdata.common.ask.Command;
 import com.stratio.crossdata.common.data.CatalogName;
 import com.stratio.crossdata.common.data.ClusterName;
-import com.stratio.crossdata.common.data.ColumnName;
 import com.stratio.crossdata.common.data.ConnectorName;
 import com.stratio.crossdata.common.data.DataStoreName;
-import com.stratio.crossdata.common.data.IndexName;
 import com.stratio.crossdata.common.data.Status;
 import com.stratio.crossdata.common.data.TableName;
 import com.stratio.crossdata.common.exceptions.ApiException;
@@ -70,7 +68,6 @@ import com.stratio.crossdata.common.metadata.ColumnMetadata;
 import com.stratio.crossdata.common.metadata.ConnectorAttachedMetadata;
 import com.stratio.crossdata.common.metadata.ConnectorMetadata;
 import com.stratio.crossdata.common.metadata.DataStoreMetadata;
-import com.stratio.crossdata.common.metadata.IndexMetadata;
 import com.stratio.crossdata.common.metadata.Operations;
 import com.stratio.crossdata.common.metadata.TableMetadata;
 import com.stratio.crossdata.common.result.CommandResult;
@@ -86,7 +83,6 @@ import com.stratio.crossdata.core.planner.Planner;
 import com.stratio.crossdata.core.query.BaseQuery;
 import com.stratio.crossdata.core.query.IParsedQuery;
 import com.stratio.crossdata.core.query.IValidatedQuery;
-import com.stratio.crossdata.core.query.MetadataParsedQuery;
 import com.stratio.crossdata.core.query.MetadataPlannedQuery;
 import com.stratio.crossdata.core.query.MetadataValidatedQuery;
 import com.stratio.crossdata.core.query.SelectPlannedQuery;
@@ -141,7 +137,7 @@ public class APIManager {
 
         result = MetadataResult.createSuccessMetadataResult(MetadataResult.OPERATION_LIST_CATALOGS);
         List<String> catalogs = new ArrayList<>();
-        for (CatalogMetadata catalogMetadata : catalogsMetadata) {
+        for (CatalogMetadata catalogMetadata: catalogsMetadata) {
             catalogs.add(catalogMetadata.getName().getName());
         }
         ((MetadataResult) result).setCatalogList(catalogs);
@@ -406,27 +402,13 @@ public class APIManager {
 
     private Result describeCatalog(CatalogName name) {
         Result result;
+        LOG.info("Processing " + APICommand.DESCRIBE_CATALOG().toString());
+        LOG.info(PROCESSING + APICommand.DESCRIBE_CATALOG().toString());
+        CatalogMetadata catalogMetadata = MetadataManager.MANAGER.getCatalog(name);
 
-        try {
-            CatalogMetadata catalog = MetadataManager.MANAGER.getCatalog(name);
-            StringBuilder sb = new StringBuilder().append(System.getProperty("line.separator"));
+        result = MetadataResult.createSuccessMetadataResult(MetadataResult.OPERATION_DESCRIBE_CATALOG);
 
-            sb.append("Catalog: ").append(catalog.getName()).append(System.lineSeparator());
-
-            sb.append("Options: ").append(System.lineSeparator());
-            for (Map.Entry<Selector, Selector> entry : catalog.getOptions().entrySet()) {
-                sb.append("\t").append(entry.getKey()).append(": ").append(entry.getValue())
-                        .append(System.lineSeparator());
-            }
-
-            sb.append("Tables: ").append(catalog.getTables().keySet()).append(System.lineSeparator());
-
-            result = CommandResult.createCommandResult(sb.toString());
-
-        } catch (MetadataManagerException mme) {
-            LOG.info(mme.getMessage(),mme);
-            result = ErrorResult.createErrorResult(new ApiException(mme.getMessage()));
-        }
+        ((MetadataResult) result).setCatalogMetadataList(Arrays.asList(catalogMetadata));
 
         return result;
     }
@@ -453,51 +435,13 @@ public class APIManager {
 
     private Result describeTable(TableName name) {
         Result result;
+        LOG.info("Processing " + APICommand.DESCRIBE_TABLE().toString());
+        LOG.info(PROCESSING + APICommand.DESCRIBE_TABLE().toString());
+        TableMetadata tableMetadata = MetadataManager.MANAGER.getTable(name);
 
-        try{
-            CatalogMetadata catalog = MetadataManager.MANAGER.getCatalog(name.getCatalogName());
-            TableMetadata table = catalog.getTables().get(name);
-            StringBuilder sb = new StringBuilder().append(System.getProperty("line.separator"));
+        result = MetadataResult.createSuccessMetadataResult(MetadataResult.OPERATION_DESCRIBE_TABLE);
 
-            if(table == null){
-                throw new MetadataManagerException("[" + name + "] doesn't exist yet");
-            }
-
-            sb.append("Table: ").append(table.getName()).append(System.lineSeparator());
-
-            sb.append("Cluster: ").append(table.getClusterRef()).append(System.lineSeparator());
-
-            sb.append("Columns: ").append(System.lineSeparator());
-            Map<ColumnName, ColumnMetadata> columns = table.getColumns();
-            for (Map.Entry<ColumnName, ColumnMetadata> entry : columns.entrySet()) {
-                sb.append("\t").append(entry.getKey()).append(": ").append(entry.getValue().getColumnType())
-                        .append(System.lineSeparator());
-            }
-
-            sb.append("Partition key: ").append(table.getPartitionKey()).append(System.lineSeparator());
-
-            sb.append("Cluster key: ").append(table.getClusterKey()).append(System.lineSeparator());
-
-            sb.append("Indexes: ").append(System.lineSeparator());
-            Map<IndexName, IndexMetadata> indexes = table.getIndexes();
-            for (Map.Entry<IndexName, IndexMetadata> idx : indexes.entrySet()) {
-                sb.append("\t").append(idx.getKey()).append("(").append(idx.getValue().getType()).append(")");
-                sb.append(": ").append(idx.getValue().getColumns().keySet());
-                sb.append(System.lineSeparator());
-            }
-
-            sb.append("Options: ").append(System.lineSeparator());
-            Map<Selector, Selector> options = table.getOptions();
-            for (Map.Entry<Selector, Selector> opt : options.entrySet()) {
-                sb.append("\t").append(opt.getKey()).append(": ").append(opt.getValue())
-                        .append(System.lineSeparator());
-            }
-
-            result = CommandResult.createCommandResult(sb.toString());
-        } catch (MetadataManagerException mme) {
-            LOG.info(mme.getMessage(),mme);
-            result = ErrorResult.createErrorResult(new ApiException(mme.getMessage()));
-        }
+        ((MetadataResult) result).setTableList(Arrays.asList(tableMetadata));
 
         return result;
     }

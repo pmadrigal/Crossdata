@@ -30,11 +30,10 @@ import com.stratio.crossdata.common.executionplan.{StorageWorkflow, ExecutionTyp
 QueryWorkflow}
 import com.stratio.crossdata.common.logicalplan.{LogicalStep, LogicalWorkflow, Project, Select}
 import com.stratio.crossdata.common.manifest.PropertyType
-import com.stratio.crossdata.common.metadata.{ColumnType, CatalogMetadata, TableMetadata, ColumnMetadata,
-IndexMetadata, IMetadata, Operations, ConnectorAttachedMetadata}
+import com.stratio.crossdata.common.metadata._
 import com.stratio.crossdata.common.metadata.structures.TableType
 import com.stratio.crossdata.common.statements.structures.Selector
-import com.stratio.crossdata.common.utils.StringUtils
+import com.stratio.crossdata.common.utils.{Constants, StringUtils}
 import com.stratio.crossdata.communication.{getConnectorName, replyConnectorName}
 import com.stratio.crossdata.core.coordinator.Coordinator
 import com.stratio.crossdata.core.execution.ExecutionManager
@@ -95,7 +94,7 @@ ImplicitSender with BeforeAndAfterAll{
   val myClusterName ="myCluster"
   val myExecutionData="myExecutionData"
   val columnNames1: Array[String] = Array(id, "user")
-  val columnTypes1: Array[ColumnType] = Array(ColumnType.INT, ColumnType.TEXT)
+  val columnTypes1: Array[ColumnType] = Array(new ColumnType(DataType.INT), new ColumnType(DataType.TEXT))
   val partitionKeys1: Array[String] = Array(id)
   val clusteringKeys1: Array[String] = Array(id)
   val clusterName1: ClusterName = new ClusterName(myClusterName)
@@ -135,15 +134,15 @@ ImplicitSender with BeforeAndAfterAll{
   )
   val metadataPlannedQuery0 = new MetadataPlannedQuery(metadataValidatedQuery0,metadataWorkflow0)
 
-
+  val isExternal = false;
   val metadataStatement1: MetadataStatement =  new CreateTableStatement(TableType.DATABASE,
 
     new TableName(catalogName,tableName1),
     new ClusterName(myClusterName),
-
     new util.LinkedHashMap[ColumnName, ColumnType](),
     new util.LinkedHashSet[ColumnName](),
-    new util.LinkedHashSet[ColumnName]()
+    new util.LinkedHashSet[ColumnName](),
+    isExternal
   )
   val metadataParsedQuery1 = new MetadataParsedQuery(new BaseQuery(incQueryId(), "create table " + tableName1 + ";",
     new CatalogName(catalogName)),
@@ -213,8 +212,8 @@ ImplicitSender with BeforeAndAfterAll{
 
     //Create cluster
     val testcluster= metadataManager.createTestCluster(myClusterName, myDatastore)
-    val clusternames=new java.util.HashSet[ClusterName]()
-    clusternames.add(testcluster)
+    val clusterwithPriorities=new java.util.LinkedHashMap[ClusterName, Integer]()
+    clusterwithPriorities.put(testcluster, Constants.DEFAULT_PRIORITY)
 
     val future = connectorActor ? getConnectorName()
     val connectorName = Await.result(future, 3 seconds).asInstanceOf[replyConnectorName]
@@ -223,7 +222,7 @@ ImplicitSender with BeforeAndAfterAll{
 
     //Create connector
     val myConnector=metadataManager.createTestConnector(connectorName.name,new DataStoreName(myDatastore.getName()),
-      clusternames,
+      clusterwithPriorities,
       operations,
       StringUtils.getAkkaActorRefUri(connectorActor))
 
@@ -234,18 +233,18 @@ ImplicitSender with BeforeAndAfterAll{
     val clusterMetadata = MetadataManager.MANAGER.getCluster(testcluster)
     val connectorsMap = new java.util.HashMap[ConnectorName, ConnectorAttachedMetadata]()
     connectorsMap.put(new ConnectorName(connectorName.name), new ConnectorAttachedMetadata(new ConnectorName
-    (connectorName.name), testcluster, new util.HashMap[Selector, Selector]()))
+    (connectorName.name), testcluster, new util.HashMap[Selector, Selector](),Constants.DEFAULT_PRIORITY))
     clusterMetadata.setConnectorAttachedRefs(connectorsMap)
     MetadataManager.MANAGER.createCluster(clusterMetadata, false)
 
     //create table
     val table1= metadataManager.createTestTable(clusterName1, catalogName, tableName, Array(name, "age"),
-      Array(ColumnType.TEXT, ColumnType.INT), Array(name), Array(name), null)
+      Array(new ColumnType(DataType.TEXT), new ColumnType(DataType.INT)), Array(name), Array(name), null)
 
     val initialSteps: java.util.List[LogicalStep] = new java.util.LinkedList[LogicalStep]
     val project: Project = getProject(tableName2)
     val columns: Array[ColumnName] = Array(new ColumnName(table1.getName, id), new ColumnName(table1.getName, "user"))
-    val types: Array[ColumnType] = Array(ColumnType.INT, ColumnType.TEXT)
+    val types: Array[ColumnType] = Array(new ColumnType(DataType.INT), new ColumnType(DataType.TEXT))
     val select: Select = plannerTest.getSelect(columns, types)
     project.setNextStep(select)
 
