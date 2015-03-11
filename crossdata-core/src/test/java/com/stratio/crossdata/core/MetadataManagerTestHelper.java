@@ -21,7 +21,6 @@ package com.stratio.crossdata.core;
 import static org.testng.Assert.fail;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -106,13 +105,9 @@ public enum MetadataManagerTestHelper {
         initialized = true;
     }
 
-    public void tearDown() {
+    public void tearDown() throws Exception {
         Grid.INSTANCE.close();
-        try {
-            FileUtils.deleteDirectory(new File(path));
-        } catch (IOException e) {
-            System.err.println(e.getMessage());
-        }
+        FileUtils.deleteDirectory(new File(path));
     }
 
     public void initHelper(){
@@ -122,17 +117,6 @@ public enum MetadataManagerTestHelper {
                 initialized = true;
             } catch (ManifestException e) {
                 initialized = false;
-            }
-        }
-    }
-
-    public void closeHelper(){
-        if(initialized){
-            try {
-                MetadataManager.MANAGER.clear();
-                ExecutionManager.MANAGER.clear();
-            } catch (Exception e) {
-                System.err.println(e.getMessage());
             }
         }
     }

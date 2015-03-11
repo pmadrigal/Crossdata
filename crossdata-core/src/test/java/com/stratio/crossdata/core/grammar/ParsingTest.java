@@ -32,6 +32,7 @@ import com.stratio.crossdata.common.data.CatalogName;
 import com.stratio.crossdata.common.exceptions.ManifestException;
 import com.stratio.crossdata.common.exceptions.ParsingException;
 import com.stratio.crossdata.core.MetadataManagerTestHelper;
+import com.stratio.crossdata.core.metadata.MetadataManager;
 import com.stratio.crossdata.core.parser.Parser;
 import com.stratio.crossdata.core.query.BaseQuery;
 import com.stratio.crossdata.core.query.IParsedQuery;
@@ -49,7 +50,7 @@ public class ParsingTest {
 
     @AfterClass
     public void tearDown() throws Exception {
-        MetadataManagerTestHelper.HELPER.closeHelper();
+        MetadataManager.MANAGER.clear();
     }
 
     protected final Parser parser = new Parser();

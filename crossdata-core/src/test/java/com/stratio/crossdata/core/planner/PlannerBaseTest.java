@@ -50,6 +50,7 @@ import com.stratio.crossdata.common.statements.structures.window.TimeUnit;
 import com.stratio.crossdata.common.statements.structures.window.WindowType;
 import com.stratio.crossdata.core.MetadataManagerTestHelper;
 import com.stratio.crossdata.core.grammar.ParsingTest;
+import com.stratio.crossdata.core.metadata.MetadataManager;
 import com.stratio.crossdata.core.query.IParsedQuery;
 import com.stratio.crossdata.core.query.SelectParsedQuery;
 import com.stratio.crossdata.core.query.SelectPlannedQuery;
@@ -77,7 +78,7 @@ public class PlannerBaseTest {
 
     @AfterClass
     public void tearDown() throws Exception {
-        MetadataManagerTestHelper.HELPER.closeHelper();
+        MetadataManager.MANAGER.clear();
     }
 
     /**

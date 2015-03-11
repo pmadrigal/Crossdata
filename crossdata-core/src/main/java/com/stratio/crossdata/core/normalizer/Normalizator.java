@@ -103,7 +103,6 @@ public class Normalizator {
         normalizeWhere();
         normalizeOrderBy();
         normalizeGroupBy();
-        validateColumnsScope();
     }
 
     /**
@@ -137,7 +136,8 @@ public class Normalizator {
      *
      * @throws ValidationException
      */
-    public void normalizeJoins() throws ValidationException {
+    public void normalizeJoins()
+            throws ValidationException {
         InnerJoin innerJoin = ((SelectStatement) parsedQuery.getStatement()).getJoin();
         if (innerJoin != null) {
             normalizeJoins(innerJoin);
@@ -151,11 +151,13 @@ public class Normalizator {
      * @param innerJoin The inner join
      * @throws ValidationException
      */
-    public void normalizeJoins(InnerJoin innerJoin) throws ValidationException {
+    public void normalizeJoins(InnerJoin innerJoin)
+            throws ValidationException {
         checkJoinRelations(innerJoin.getRelations());
     }
 
-    private void normalizeWhere() throws ValidationException {
+    private void normalizeWhere()
+            throws ValidationException {
         List<Relation> where = ((SelectStatement) parsedQuery.getStatement()).getWhere();
         if (where != null && !where.isEmpty()) {
             normalizeWhere(where);
@@ -163,7 +165,8 @@ public class Normalizator {
         }
     }
 
-    private void normalizeWhere(List<Relation> where) throws ValidationException {
+    private void normalizeWhere(List<Relation> where)
+            throws ValidationException {
         checkWhereRelations(where);
     }
 
@@ -172,7 +175,8 @@ public class Normalizator {
      *
      * @throws ValidationException
      */
-    public void normalizeOrderBy() throws ValidationException {
+    public void normalizeOrderBy()
+            throws ValidationException {
 
         List<OrderByClause> orderByClauseClauses = ((SelectStatement) parsedQuery.getStatement()).getOrderByClauses();
 
@@ -188,7 +192,8 @@ public class Normalizator {
      * @param orderByClauseClauses The order by
      * @throws ValidationException
      */
-    public void normalizeOrderBy(List<OrderByClause> orderByClauseClauses) throws ValidationException {
+    public void normalizeOrderBy(List<OrderByClause> orderByClauseClauses)
+            throws ValidationException {
         for (OrderByClause orderBy : orderByClauseClauses) {
             Selector selector = orderBy.getSelector();
             switch (selector.getType()) {
@@ -212,7 +217,8 @@ public class Normalizator {
      *
      * @throws ValidationException
      */
-    public void normalizeSelectExpression() throws ValidationException {
+    public void normalizeSelectExpression()
+            throws ValidationException {
         SelectExpression selectExpression = ((SelectStatement) parsedQuery.getStatement()).getSelectExpression();
         if (selectExpression != null) {
             normalizeSelectExpression(selectExpression);
@@ -225,7 +231,8 @@ public class Normalizator {
      * @param selectExpression The select expression
      * @throws ValidationException
      */
-    public void normalizeSelectExpression(SelectExpression selectExpression) throws ValidationException {
+    public void normalizeSelectExpression(SelectExpression selectExpression)
+            throws ValidationException {
         List<Selector> normalizeSelectors = checkListSelector(selectExpression.getSelectorList());
         fields.getSelectors().addAll(normalizeSelectors);
     }
@@ -244,7 +251,7 @@ public class Normalizator {
     }
 
     private void checkFormatBySelectorIdentifier(Selector selector, Set<ColumnName> columnNames)
-                    throws ValidationException {
+            throws ValidationException {
         switch (selector.getType()) {
         case FUNCTION:
             throw new BadFormatException("Function include into groupBy is not valid");
@@ -267,7 +274,7 @@ public class Normalizator {
             ColumnName name = ((ColumnSelector) selector).getName();
             if (!columnNames.contains(name)) {
                 throw new BadFormatException(
-                                "All columns in the select clause must be in the group by or it must be aggregation includes.");
+                        "All columns in the select clause must be in the group by or it must be aggregation includes.");
             }
             break;
         case ASTERISK:
@@ -292,21 +299,6 @@ public class Normalizator {
         }
     }
 
-    private void validateColumnsScope() throws ValidationException {
-        for (ColumnName columnName : fields.getColumnNames()) {
-            String expectedTableName = columnName.getTableName().getQualifiedName();
-            Iterator<TableName> tableNamesIterator = fields.getTableNames().iterator();
-            boolean tableFound = false;
-            while (!tableFound && tableNamesIterator.hasNext()) {
-                tableFound = tableNamesIterator.next().getQualifiedName().equals(expectedTableName);
-            }
-            if (!tableFound) {
-                throw new BadFormatException(
-                                "The column [" + expectedTableName + "] is not within the scope of the query");
-            }
-        }
-    }
-
     /**
      * Validate the joins of a parsed query.
      *
@@ -319,8 +311,7 @@ public class Normalizator {
             switch (relation.getOperator()) {
             case EQ:
                 if (relation.getLeftTerm().getType() == SelectorType.COLUMN
-                                && relation.getRightTerm().getType() == SelectorType.COLUMN) {
-
+                        && relation.getRightTerm().getType() == SelectorType.COLUMN) {
                     checkColumnSelector((ColumnSelector) relation.getRightTerm());
                     checkColumnSelector((ColumnSelector) relation.getLeftTerm());
                 } else {
@@ -351,7 +342,8 @@ public class Normalizator {
      * @param relation The relation of the query.
      * @throws ValidationException
      */
-    public void checkRelation(Relation relation) throws ValidationException {
+    public void checkRelation(Relation relation)
+            throws ValidationException {
         if (relation.getOperator().isInGroup(Operator.Group.ARITHMETIC)) {
             throw new BadFormatException("Compare operations are just valid");
         }
@@ -359,7 +351,8 @@ public class Normalizator {
         checkRelationFormatRight(relation);
     }
 
-    private void checkRelationFormatLeft(Relation relation) throws ValidationException {
+    private void checkRelationFormatLeft(Relation relation)
+            throws ValidationException {
         switch (relation.getLeftTerm().getType()) {
         case FUNCTION:
             throw new BadFormatException("Functions not supported yet");
@@ -376,7 +369,8 @@ public class Normalizator {
         }
     }
 
-    private void checkRelationFormatRight(Relation relation) throws ValidationException {
+    private void checkRelationFormatRight(Relation relation)
+            throws ValidationException {
         switch (relation.getRightTerm().getType()) {
         case COLUMN:
         case STRING:
@@ -518,7 +512,7 @@ public class Normalizator {
     public List<Selector> checkListSelector(List<Selector> selectors) throws ValidationException {
         List<Selector> result = new ArrayList<>();
         TableName firstTableName = fields.getTableNames().iterator().next();
-        for (Selector selector : selectors) {
+        for (Selector selector: selectors) {
             switch (selector.getType()) {
             case FUNCTION:
                 FunctionSelector functionSelector = (FunctionSelector) selector;
@@ -551,14 +545,16 @@ public class Normalizator {
      * @param functionSelector The includes Selector to validate.
      * @throws ValidationException
      */
-    public void checkFunctionSelector(FunctionSelector functionSelector) throws ValidationException {
+    public void checkFunctionSelector(FunctionSelector functionSelector)
+            throws ValidationException {
         // Check columns
         List<Selector> normalizeSelector = checkListSelector(functionSelector.getFunctionColumns());
         functionSelector.getFunctionColumns().clear();
         functionSelector.getFunctionColumns().addAll(normalizeSelector);
     }
 
-    private void checkRightSelector(ColumnName name, Operator operator, Selector rightTerm) throws ValidationException {
+    private void checkRightSelector(ColumnName name, Operator operator, Selector rightTerm)
+            throws ValidationException {
         // Get column type from MetadataManager
         ColumnMetadata columnMetadata = MetadataManager.MANAGER.getColumn(name);
 
@@ -608,7 +604,7 @@ public class Normalizator {
     }
 
     private void checkCompatibility(ColumnMetadata column, Operator operator, SelectorType valueType)
-                    throws ValidationException {
+            throws ValidationException {
         switch (column.getColumnType()) {
         case BOOLEAN:
             checkBooleanCompatibility(column, operator, valueType);
@@ -632,7 +628,7 @@ public class Normalizator {
     }
 
     private void checkBooleanCompatibility(ColumnMetadata column, Operator operator, SelectorType valueType)
-                    throws ValidationException {
+            throws ValidationException {
         if (operator != Operator.EQ) {
             throw new BadFormatException("Boolean relations only accept equal operator.");
         }
@@ -641,14 +637,15 @@ public class Normalizator {
         }
     }
 
-    private void checkNumericCompatibility(ColumnMetadata column, SelectorType valueType) throws ValidationException {
+    private void checkNumericCompatibility(ColumnMetadata column, SelectorType valueType)
+            throws ValidationException {
         if ((valueType != SelectorType.INTEGER) && (valueType != SelectorType.FLOATING_POINT)) {
             throw new NotMatchDataTypeException(column.getName());
         }
     }
 
     private void checkStringCompatibility(ColumnMetadata column, Operator operator, SelectorType valueType)
-                    throws ValidationException {
+            throws ValidationException {
         if (valueType != SelectorType.STRING) {
             throw new NotMatchDataTypeException(column.getName());
         }
@@ -662,7 +659,7 @@ public class Normalizator {
             Map<IndexName, IndexMetadata> indexes = tableMetadata.getIndexes();
             if (indexes == null || indexes.isEmpty()) {
                 throw new BadFormatException(
-                                "Table " + column.getName().getTableName() + " doesn't contain any index.");
+                        "Table " + column.getName().getTableName() + " doesn't contain any index.");
             }
 
             boolean indexFound = false;
@@ -681,8 +678,8 @@ public class Normalizator {
             if (!indexFound) {
                 throw new BadFormatException("No index was found for the MATCH operator.");
             }
-        } else if ((operator != Operator.EQ) && (operator != Operator.GT) && (operator != Operator.GET) && (operator
-                        != Operator.LT) && (operator != Operator.LET) && (operator != Operator.DISTINCT)) {
+        } else if ((operator != Operator.EQ) && (operator != Operator.GT) && (operator != Operator.GET)
+                && (operator != Operator.LT) && (operator != Operator.LET) && (operator != Operator.DISTINCT)) {
             throw new BadFormatException("String relations only accept equal operator.");
         }
 

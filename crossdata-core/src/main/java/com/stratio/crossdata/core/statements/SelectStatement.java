@@ -173,12 +173,8 @@ public class SelectStatement extends CrossdataStatement implements Serializable 
      * @param join The join clause.
      */
     public void setJoin(InnerJoin join) {
+        this.joinInc = true;
         this.join = join;
-        if(join != null){
-            this.joinInc = true;
-        } else {
-            this.joinInc = false;
-        }
     }
 
     /**

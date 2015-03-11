@@ -33,9 +33,7 @@ import org.antlr.runtime.RecognitionException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.log4j.Logger;
 
-import com.stratio.crossdata.common.data.CatalogName;
 import com.stratio.crossdata.common.exceptions.ConnectionException;
-import com.stratio.crossdata.common.result.CommandResult;
 import com.stratio.crossdata.common.result.IDriverResultHandler;
 import com.stratio.crossdata.common.result.QueryResult;
 import com.stratio.crossdata.common.result.Result;
@@ -262,12 +260,7 @@ public class Shell {
      * @param result The result returned by the driver.
      */
     protected void updatePrompt(Result result) {
-        if (CommandResult.class.isInstance(result)) {
-            Object objectResult = ((CommandResult) result).getResult();
-            if (objectResult instanceof CatalogName) {
-                setPrompt(((CatalogName) objectResult).getName());
-            }
-        } else if (QueryResult.class.isInstance(result)) {
+        if (QueryResult.class.isInstance(result)) {
             QueryResult qr = QueryResult.class.cast(result);
             if (qr.isCatalogChanged()) {
                 String currentCatalog = qr.getCurrentCatalog();
@@ -352,8 +345,7 @@ public class Shell {
                     } else {
                         try {
                             Result result = crossdataDriver.executeAsyncRawQuery(toExecute, resultHandler);
-                            LOG.info(ConsoleUtils.stringResult(result));
-                            updatePrompt(result);
+                            LOG.info(ConsoleUtils.stringResult(result, this));
                         } catch (Exception ex) {
                             LOG.error("Execution failed: " + ex.getMessage());
                         }
@@ -420,8 +412,7 @@ public class Shell {
                     } else {
                         result = crossdataDriver.executeRawQuery(query);
                     }
-                    LOG.info(ConsoleUtils.stringResult(result));
-                    updatePrompt(result);
+                    LOG.info(ConsoleUtils.stringResult(result, this));
                     numberOps++;
                 }
             }

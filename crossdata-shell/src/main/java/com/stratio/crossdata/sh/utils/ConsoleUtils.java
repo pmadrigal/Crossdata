@@ -41,6 +41,7 @@ import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.joda.time.Days;
 
+import com.stratio.crossdata.common.data.CatalogName;
 import com.stratio.crossdata.common.data.ResultSet;
 import com.stratio.crossdata.common.data.Row;
 import com.stratio.crossdata.common.metadata.ColumnMetadata;
@@ -52,6 +53,7 @@ import com.stratio.crossdata.common.result.MetadataResult;
 import com.stratio.crossdata.common.result.QueryResult;
 import com.stratio.crossdata.common.result.Result;
 import com.stratio.crossdata.common.result.StorageResult;
+import com.stratio.crossdata.sh.Shell;
 
 import jline.console.ConsoleReader;
 import jline.console.history.History;
@@ -76,6 +78,23 @@ public final class ConsoleUtils {
      * Private class constructor as all methods are static.
      */
     private ConsoleUtils() {
+    }
+
+    /**
+     * Convert the result of a query to String to show it by the shell.
+     * @param result The result of the query.
+     * @param shell The Shell.
+     * @return
+     */
+    public static String stringResult(Result result, Shell shell) {
+        String stringResult = stringResult(result);
+        if (result instanceof CommandResult) {
+            Object objectResult = ((CommandResult) result).getResult();
+            if (objectResult instanceof CatalogName) {
+                shell.setPrompt(((CatalogName) objectResult).getName());
+            }
+        }
+        return stringResult;
     }
 
     /**

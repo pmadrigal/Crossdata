@@ -76,7 +76,7 @@ public class CoordinatorTest {
 
     @AfterClass
     public void tearDown() throws Exception {
-        MetadataManagerTestHelper.HELPER.closeHelper();
+        MetadataManager.MANAGER.clear();
     }
 
     /**

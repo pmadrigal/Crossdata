@@ -555,11 +555,11 @@ Example:
 Discover metadata from a specified cluster. This command provides information about catalogs and tables already
 existent on a cluster.
 
-DISCOVER METADATA ON CLUSTER \<cluster-name\> ';'
+DISCOVER METADATA FROM \<cluster-name\> ';'
 
 Example:
 
-    DISCOVER METADATA ON CLUSTER productionCluster;
+    DISCOVER METADATA FROM productionCluster;
 
 ### IMPORT CATALOGS
 
@@ -572,7 +572,7 @@ Example:
 
     IMPORT CATALOGS FROM CLUSTER cluster_name;
 
-### IMPORT CATALOG
+### IMPORT CATALOGS
 
 Import all the metadata from a specific catalog. This command incorporates to the the Crossdata servers a
 catalog metadata and its underlying metadata.
@@ -581,7 +581,7 @@ IMPORT CATALOG \<catalog-name\> FROM CLUSTER \<cluster-name\> ';'
 
 Example:
 
-    IMPORT CATALOG catalog_name FROM CLUSTER cluster_name;
+    IMPORT CATALOGS FROM CLUSTER cluster_name;
 
 ### IMPORT TABLE
 
