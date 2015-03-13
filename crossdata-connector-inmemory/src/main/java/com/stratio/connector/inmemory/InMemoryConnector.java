@@ -18,11 +18,14 @@
 
 package com.stratio.connector.inmemory;
 
+import static com.codahale.metrics.MetricRegistry.name;
+
 import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.log4j.Logger;
 
+import com.codahale.metrics.Timer;
 import com.stratio.connector.inmemory.datastore.InMemoryDatastore;
 import com.stratio.connector.inmemory.metadata.MetadataListener;
 import com.stratio.crossdata.common.connector.AbstractExtendedConnector;
@@ -59,6 +62,14 @@ public class InMemoryConnector extends AbstractExtendedConnector {
      */
     private final Map<ClusterName, InMemoryDatastore> clusters = new HashMap<>();
 
+    private InMemoryQueryEngine queryEngine;
+
+    private InMemoryStorageEngine storageEngine;
+
+    private InMemoryMetadataEngine metadataEngine;
+
+    private final Timer connectTimer;
+
     /**
      * Constant defining the required datastore property.
      */
@@ -66,6 +77,9 @@ public class InMemoryConnector extends AbstractExtendedConnector {
 
     public InMemoryConnector(IConnectorApp connectorApp) {
         super(connectorApp);
+        connectTimer = new Timer();
+        String timerName = name(InMemoryConnector.class, "connect");
+        registerMetric(timerName, connectTimer);
     }
 
     @Override
@@ -87,6 +101,10 @@ public class InMemoryConnector extends AbstractExtendedConnector {
 
     @Override
     public void connect(ICredentials credentials, ConnectorClusterConfig config) throws ConnectionException {
+        //Init Metric
+        Timer.Context connectTimerContext = connectTimer.time();
+
+        // Connection
         ClusterName targetCluster = config.getName();
         Map<String, String> options = config.getClusterOptions();
         LOG.info("clusterOptions: " + config.getClusterOptions().toString() + " connectorOptions: " + config.getConnectorOptions());
@@ -95,12 +113,18 @@ public class InMemoryConnector extends AbstractExtendedConnector {
             //we instantiate the Datastore instead.
             InMemoryDatastore datastore = new InMemoryDatastore(Integer.valueOf(options.get(DATASTORE_PROPERTY)));
             clusters.put(targetCluster, datastore);
-        }else{
+        } else {
+            long millis = connectTimerContext.stop();
+            LOG.info("Connection took " + millis + " milliseconds");
             throw new ConnectionException("Invalid options, expecting TableRowLimit");
         }
 
         //Try to restore existing schema
         restoreSchema(targetCluster);
+
+        //End Metric
+        long millis = connectTimerContext.stop();
+        LOG.info("Connection took " + millis + " milliseconds");
     }
 
     @Override
@@ -125,17 +149,26 @@ public class InMemoryConnector extends AbstractExtendedConnector {
 
     @Override
     public IStorageEngine getStorageEngine() throws UnsupportedException {
-        return new InMemoryStorageEngine(this);
+        if(storageEngine == null){
+            storageEngine = new InMemoryStorageEngine(this);
+        }
+        return storageEngine;
     }
 
     @Override
     public IQueryEngine getQueryEngine() throws UnsupportedException {
-        return new InMemoryQueryEngine(this);
+        if(queryEngine == null){
+            queryEngine = new InMemoryQueryEngine(this);
+        }
+        return queryEngine;
     }
 
     @Override
     public IMetadataEngine getMetadataEngine() throws UnsupportedException {
-        return new InMemoryMetadataEngine(this);
+        if(metadataEngine == null){
+            metadataEngine = new InMemoryMetadataEngine(this);
+        }
+        return metadataEngine;
     }
 
     @Override

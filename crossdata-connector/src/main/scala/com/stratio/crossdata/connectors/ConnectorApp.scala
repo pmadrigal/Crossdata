@@ -20,6 +20,7 @@ package com.stratio.crossdata.connectors
 
 import java.util
 
+import com.codahale.metrics._
 import akka.actor.{ActorSelection, ActorRef, ActorSystem}
 import akka.pattern.ask
 import akka.routing.RoundRobinRouter
@@ -30,13 +31,14 @@ import com.stratio.crossdata.connectors.config.ConnectConfig
 import com.stratio.crossdata.common.connector.{IMetadataListener, IConnectorApp, IConfiguration, IConnector}
 import org.apache.log4j.Logger
 import scala.collection.mutable.Set
-import com.codahale.metrics.{Gauge, MetricRegistry}
 import scala.Some
 import com.stratio.crossdata.communication.Shutdown
 import scala.concurrent.Await
 import akka.util.Timeout
 import scala.concurrent.duration.Duration
 import java.util.concurrent.TimeUnit
+import scala.Some
+import com.stratio.crossdata.communication.Shutdown
 
 object ConnectorApp extends App {
   args.length==2
@@ -52,6 +54,17 @@ class ConnectorApp extends ConnectConfig with IConnectorApp {
   var actorClusterNode: Option[ActorRef] = None
 
   var metricName: String = "connector"
+
+  logger.info("Connector Name: " + connectorName)
+
+  if((connectorName.isEmpty) || (connectorName.equalsIgnoreCase("XconnectorX"))){
+    logger.error("##########################################################################################");
+    logger.error("# ERROR ##################################################################################");
+    logger.error("##########################################################################################");
+    logger.error("# USING DEFAULT CONNECTOR NAME: XconnectorX                                              #")
+    logger.error("# CHANGE PARAMETER crossdata-connector.config.connector.name FROM THE CONFIGURATION FILE #")
+    logger.error("##########################################################################################");
+  }
 
   def stop():Unit = {
     actorClusterNode.get ! Shutdown()
@@ -123,4 +136,7 @@ class ConnectorApp extends ConnectConfig with IConnectorApp {
     actorClusterNode.get ! mapListener
   }
 
+  override def registerMetric(name: String, metric: Metric): Metric = {
+    Metrics.getRegistry.register(name, metric)
+  }
 }
