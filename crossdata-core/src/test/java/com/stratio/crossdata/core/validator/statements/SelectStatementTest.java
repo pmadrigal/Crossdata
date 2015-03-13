@@ -35,6 +35,8 @@ import com.stratio.crossdata.common.data.ColumnName;
 import com.stratio.crossdata.common.data.TableName;
 import com.stratio.crossdata.common.exceptions.IgnoreQueryException;
 import com.stratio.crossdata.common.exceptions.ValidationException;
+import com.stratio.crossdata.common.exceptions.validation.AmbiguousNameException;
+import com.stratio.crossdata.common.statements.structures.AsteriskSelector;
 import com.stratio.crossdata.common.statements.structures.BooleanSelector;
 import com.stratio.crossdata.common.statements.structures.ColumnSelector;
 import com.stratio.crossdata.common.statements.structures.FunctionSelector;
@@ -46,10 +48,13 @@ import com.stratio.crossdata.common.statements.structures.Relation;
 import com.stratio.crossdata.common.statements.structures.SelectExpression;
 import com.stratio.crossdata.common.statements.structures.Selector;
 import com.stratio.crossdata.common.statements.structures.StringSelector;
+import com.stratio.crossdata.core.parser.Parser;
+import com.stratio.crossdata.common.utils.Constants;
 import com.stratio.crossdata.core.query.BaseQuery;
 import com.stratio.crossdata.core.query.IParsedQuery;
 import com.stratio.crossdata.core.query.IValidatedQuery;
 import com.stratio.crossdata.core.query.SelectParsedQuery;
+import com.stratio.crossdata.core.query.SelectValidatedQuery;
 import com.stratio.crossdata.core.statements.SelectStatement;
 import com.stratio.crossdata.core.structures.InnerJoin;
 import com.stratio.crossdata.core.validator.BasicValidatorTest;
@@ -83,6 +88,132 @@ public class SelectStatementTest extends BasicValidatorTest {
             fail(e.getMessage());
         }
 
+    }
+
+    @Test
+    public void validateSelectWithSubquery() {
+        String query = "SELECT age, email FROM (SELECT * FROM test.table1);";
+
+        BaseQuery baseQuery = new BaseQuery("validateSelectWithSubquery", query, new CatalogName("demo"));
+
+        Parser parser = new Parser();
+        SelectParsedQuery parsedQuery = (SelectParsedQuery) parser.parse(baseQuery);
+
+        Validator validator = new Validator();
+
+        try {
+            validator.validate(parsedQuery);
+            Assert.assertTrue(true);
+        } catch (ValidationException e) {
+            Assert.fail(e.getMessage());
+        } catch (IgnoreQueryException e) {
+            Assert.fail(e.getMessage());
+        }
+    }
+
+    @Test
+    public void validateSubqueriesInWhereClauses() {
+        String query = "SELECT age, email FROM users " +
+                "WHERE age = 25 * 3 + (SELECT * FROM test.table1) - phrase + (SELECT rating FROM test.table2)" +
+                " AND email = 25*(SELECT member FROM table3)" +
+                "               +(SELECT name, address FROM table3 WHERE address=(SELECT * FROM sales.customers)+age);";
+
+        BaseQuery baseQuery = new BaseQuery("validateSubqueriesInWhereClauses", query, new CatalogName("demo"));
+
+        Parser parser = new Parser();
+        SelectParsedQuery parsedQuery = (SelectParsedQuery) parser.parse(baseQuery);
+
+        Validator validator = new Validator();
+
+        try {
+            SelectValidatedQuery normalizedQuery = (SelectValidatedQuery) validator.validate(parsedQuery);
+            assertNotNull(normalizedQuery, "normalizedQuery is null");
+            Assert.assertTrue(true, "Test failed.");
+        } catch (ValidationException e) {
+            Assert.fail(e.getMessage());
+        } catch (IgnoreQueryException e) {
+            Assert.fail(e.getMessage());
+        } catch (Exception e) {
+            Assert.fail(e.getMessage());
+        }
+
+    }
+
+    @Test
+    public void validateTableSubqueryAndWhereSubquery() {
+        String query = "SELECT * FROM (SELECT name, surname, rating FROM table3) " +
+                "WHERE rating > (SELECT age FROM sales.customers);";
+
+        BaseQuery baseQuery = new BaseQuery("validateTableSubqueryAndWhereSubquery", query, new CatalogName("demo"));
+
+        Parser parser = new Parser();
+        SelectParsedQuery parsedQuery = (SelectParsedQuery) parser.parse(baseQuery);
+
+        Validator validator = new Validator();
+
+        try {
+            SelectValidatedQuery normalizedQuery = (SelectValidatedQuery) validator.validate(parsedQuery);
+            assertNotNull(normalizedQuery, "normalizedQuery is null");
+            Assert.assertTrue(true, "Test failed.");
+        } catch (ValidationException e) {
+            Assert.fail(e.getMessage());
+        } catch (IgnoreQueryException e) {
+            Assert.fail(e.getMessage());
+        } catch (Exception e) {
+            Assert.fail(e.getMessage());
+        }
+
+    }
+
+    @Test
+    public void validateComplexSubqueries(){
+        String query = "SELECT name, gender, age FROM " +
+                "(SELECT * FROM users WHERE email = 18 + (SELECT email FROM sales.customers) * 'my comment');";
+
+        BaseQuery baseQuery = new BaseQuery("validateComplexSubqueries", query, new CatalogName("demo"));
+
+        Parser parser = new Parser();
+        SelectParsedQuery parsedQuery = (SelectParsedQuery) parser.parse(baseQuery);
+
+        Validator validator = new Validator();
+
+        try {
+            SelectValidatedQuery normalizedQuery = (SelectValidatedQuery) validator.validate(parsedQuery);
+            assertNotNull(normalizedQuery, "normalizedQuery is null");
+            Assert.assertTrue(true, "Test failed.");
+        } catch (ValidationException e) {
+            Assert.fail(e.getMessage());
+        } catch (IgnoreQueryException e) {
+            Assert.fail(e.getMessage());
+        } catch (Exception e) {
+            Assert.fail(e.getMessage());
+        }
+    }
+
+    @Test
+    public void validateComplexSubqueries2(){
+        String query = "SELECT name FROM " +
+                "(SELECT * FROM users " +
+                    "WHERE age = 18 + (SELECT rating FROM table3) / 'my comment') AS myTable;";
+
+        BaseQuery baseQuery = new BaseQuery("validateComplexSubqueries2", query, new CatalogName("demo"));
+
+        Parser parser = new Parser();
+        SelectParsedQuery parsedQuery = (SelectParsedQuery) parser.parse(baseQuery);
+
+        Validator validator = new Validator();
+
+        try {
+            SelectValidatedQuery normalizedQuery = (SelectValidatedQuery) validator.validate(parsedQuery);
+            assertNotNull(normalizedQuery, "normalizedQuery is null");
+            Assert.assertTrue(true, "Test failed.");
+        } catch (ValidationException e) {
+            Assert.fail(e.getMessage());
+        } catch (IgnoreQueryException e) {
+            Assert.fail(e.getMessage());
+        } catch (Exception e) {
+            Assert.fail(e.getMessage());
+        }
     }
 
     /*
@@ -1457,5 +1588,91 @@ public class SelectStatementTest extends BasicValidatorTest {
         assertEquals(inputText, expectedText, "Invalid alias result");
 
     }*/
+
+
+    @Test
+    public void simpleSubqueryTest(){
+
+        String inputText = "SELECT * FROM ( SELECT demo.users.name AS n, demo.users.age FROM demo.users ) t WHERE n = 'name_1'";
+        String expectedText = "SELECT "+Constants.VIRTUAL_CATALOG_NAME+".t.n AS n, "+Constants.VIRTUAL_CATALOG_NAME+".t.age FROM ( SELECT demo.users.name AS n, demo.users.age FROM demo.users ) AS t " +
+                        "WHERE "+ Constants.VIRTUAL_CATALOG_NAME+".t.n = 'name_1'";
+
+        ColumnName n1 = new ColumnName("demo", "users", "name");
+        Selector selector1 = new ColumnSelector(n1);
+        selector1.setAlias("n");
+        Selector selector2 = new ColumnSelector(new ColumnName("demo", "users", "age"));
+        List<Selector> selectorList = new ArrayList<>();
+        selectorList.add(selector1);
+        selectorList.add(selector2);
+        SelectExpression selectExpression = new SelectExpression(selectorList);
+        TableName tablename = new TableName("demo", "users");
+        SelectStatement subquerySelectStatement = new SelectStatement(selectExpression, tablename);
+
+        List<Selector> selectorListSuperquery = new ArrayList<>();
+        selectorListSuperquery.add(new AsteriskSelector());
+        TableName virtualTable = new TableName(Constants.VIRTUAL_CATALOG_NAME, "t");
+        virtualTable.setAlias("t");
+        SelectStatement selectStatement = new SelectStatement(new SelectExpression(selectorListSuperquery), virtualTable);
+        selectStatement.setSubquery(subquerySelectStatement, "t");
+
+
+        List<Relation> where = new ArrayList<>();
+        Selector leftWh = new ColumnSelector(new ColumnName("", "", "n"));
+        Selector rightWh = new StringSelector(new TableName("", ""), "name_1");
+        Relation relationWh = new Relation(leftWh, Operator.EQ, rightWh);
+        where.add(relationWh);
+        selectStatement.setWhere(where);
+
+        Validator validator = new Validator();
+        BaseQuery baseQuery = new BaseQuery("SelectId", inputText, new CatalogName("demo"));
+        IParsedQuery parsedQuery = new SelectParsedQuery(baseQuery, selectStatement);
+        IValidatedQuery validatedQuery = null;
+        try {
+            validatedQuery = validator.validate(parsedQuery);
+        } catch (ValidationException | IgnoreQueryException e) {
+            fail("Cannot validate valid statement", e);
+        }
+
+        assertNotNull(validatedQuery, "Expecting validated query");
+        assertEquals(validatedQuery.toString(), expectedText, "Invalid resolution");
+
+    }
+
+    @Test
+    public void simpleSubqueryWithAmbiguousNameTest(){
+
+        String inputText = "SELECT * FROM ( SELECT demo.users.name , demo.users.age AS name FROM demo.users )'";
+
+        ColumnName n1 = new ColumnName("demo", "users", "name");
+        Selector selector1 = new ColumnSelector(n1);
+        Selector selector2 = new ColumnSelector(new ColumnName("demo", "users", "age"));
+        selector2.setAlias("name");
+        List<Selector> selectorList = new ArrayList<>();
+        selectorList.add(selector1);
+        selectorList.add(selector2);
+        SelectExpression selectExpression = new SelectExpression(selectorList);
+        TableName tablename = new TableName("demo", "users");
+        SelectStatement subquerySelectStatement = new SelectStatement(selectExpression, tablename);
+
+        List<Selector> selectorListSuperquery = new ArrayList<>();
+        selectorListSuperquery.add(new AsteriskSelector());
+        TableName virtualTable = new TableName(Constants.VIRTUAL_CATALOG_NAME, "t");
+        virtualTable.setAlias("t");
+        SelectStatement selectStatement = new SelectStatement(new SelectExpression(selectorListSuperquery), virtualTable);
+        selectStatement.setSubquery(subquerySelectStatement, "t");
+
+
+        Validator validator = new Validator();
+        BaseQuery baseQuery = new BaseQuery("SelectId", inputText, new CatalogName("demo"));
+        IParsedQuery parsedQuery = new SelectParsedQuery(baseQuery, selectStatement);
+        try {
+            validator.validate(parsedQuery);
+            fail("Duplicate names within the subquery should not be validated");
+        } catch (ValidationException | IgnoreQueryException e) {
+            Assert.assertTrue( e instanceof AmbiguousNameException);
+        }
+
+    }
+
 
 }

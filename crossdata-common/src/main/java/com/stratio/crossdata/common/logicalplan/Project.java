@@ -22,15 +22,15 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import com.stratio.crossdata.common.metadata.Operations;
 import com.stratio.crossdata.common.data.ClusterName;
 import com.stratio.crossdata.common.data.ColumnName;
 import com.stratio.crossdata.common.data.TableName;
+import com.stratio.crossdata.common.metadata.Operations;
 
 /**
  * Project operation to retrieve a list of columns from the datastore.
  */
-public class Project extends TransformationStep {
+public class Project extends TransformationStep implements Virtualizable {
 
     private static final long serialVersionUID = 413155415353651161L;
     /**
@@ -138,5 +138,10 @@ public class Project extends TransformationStep {
         }
         sb.append(")");
         return sb.toString();
+    }
+
+    @Override
+    public final boolean isVirtual() {
+        return tableName.isVirtual();
     }
 }

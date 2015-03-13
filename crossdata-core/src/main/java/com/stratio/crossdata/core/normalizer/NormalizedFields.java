@@ -51,6 +51,8 @@ public class NormalizedFields {
      */
     private Set<TableName> tableNames = new LinkedHashSet<>();
 
+    private Set<TableName> preferredTableNames = new LinkedHashSet<>();
+
     /**
      * Set of {@link com.stratio.crossdata.common.data.CatalogName} involved in a query.
      */
@@ -96,11 +98,6 @@ public class NormalizedFields {
      * Map of column alias associating alias with ColumnNames.
      */
     private Map<String, ColumnName> columnNameAlias = new HashMap<>();
-
-    /**
-     * Map associating function name and function signatures.
-     */
-    private Map<String, String> signatures = new HashMap<>();
 
     /**
      * Class constructor.
@@ -238,10 +235,14 @@ public class NormalizedFields {
      * @return A list of {@link com.stratio.crossdata.common.metadata.TableMetadata}.
      */
     public List<TableMetadata> getTablesMetadata() {
-        //recover all Metadata about a tableName
-        for (TableName tableName : tableNames) {
-            tablesMetadata.add(MetadataManager.MANAGER.getTable(tableName));
-        }
+
+            //recover all Metadata about a tableName
+            for (TableName tableName : tableNames) {
+                if(!tableName.isVirtual()) {
+                    tablesMetadata.add(MetadataManager.MANAGER.getTable(tableName));
+                }
+            }
+
         return tablesMetadata;
     }
 
@@ -285,22 +286,11 @@ public class NormalizedFields {
         return columnNameAlias.get(alias);
     }
 
-    /**
-     * Get the map of functions with their a associated signatures.
-     *
-     * @return A map.
-     */
-    public Map<String, String> getSignatures() {
-        return signatures;
+    public Set<TableName> getPreferredTableNames() {
+        return preferredTableNames;
     }
 
-    /**
-     * Add a new signature.
-     *
-     * @param functionName The function name.
-     * @param signature    The signature.
-     */
-    public void addSignature(String functionName, String signature) {
-        signatures.put(functionName, signature);
+    public void setPreferredTableNames(Set<TableName> preferredTableNames) {
+        this.preferredTableNames = preferredTableNames;
     }
 }

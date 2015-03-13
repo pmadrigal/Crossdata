@@ -18,6 +18,8 @@
 
 package com.stratio.connector.inmemory;
 
+import static com.codahale.metrics.MetricRegistry.name;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -25,6 +27,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.log4j.Logger;
+
+import com.codahale.metrics.Timer;
 import com.stratio.connector.inmemory.datastore.InMemoryDatastore;
 import com.stratio.connector.inmemory.datastore.InMemoryOperations;
 import com.stratio.connector.inmemory.datastore.InMemoryRelation;
@@ -66,12 +71,19 @@ import com.stratio.crossdata.common.statements.structures.StringSelector;
 /**
  * Class that implements the  {@link com.stratio.crossdata.common.connector.IQueryEngine}.
  */
-public class InMemoryQueryEngine implements IQueryEngine{
+public class InMemoryQueryEngine implements IQueryEngine {
+
+    /**
+     * Class logger.
+     */
+    private static final Logger LOG = Logger.getLogger(InMemoryQueryEngine.class);
 
     /**
      * Link to the in memory connector.
      */
     private final InMemoryConnector connector;
+
+    private final Timer executeTimer;
 
     /**
      * Map with the equivalences between crossdata operators and the ones supported by our datastore.
@@ -92,13 +104,17 @@ public class InMemoryQueryEngine implements IQueryEngine{
      */
     public InMemoryQueryEngine(InMemoryConnector connector){
         this.connector = connector;
+        executeTimer = new Timer();
+        String timerName = name(InMemoryQueryEngine.class, "execute");
+        connector.registerMetric(timerName, executeTimer);
     }
 
     @Override
     public QueryResult execute(LogicalWorkflow workflow) throws ConnectorException {
+        //Init Metric
+        Timer.Context executeTimerContext = executeTimer.time();
 
         List<Object[]> results;
-
         Project projectStep;
         OrderBy orderByStep = null;
         Select selectStep;
@@ -141,7 +157,13 @@ public class InMemoryQueryEngine implements IQueryEngine{
             results = orderResult(results, outputColumns, orderByStep);
         }
 
-        return toCrossdataResults(selectStep, limit, results);
+        QueryResult finalResult = toCrossdataResults(selectStep, limit, results);
+
+        //End Metric
+        long millis = executeTimerContext.stop();
+        LOG.info("Query took " + millis + " milliseconds");
+
+        return finalResult;
     }
 
     private List<Object[]> orderResult(
