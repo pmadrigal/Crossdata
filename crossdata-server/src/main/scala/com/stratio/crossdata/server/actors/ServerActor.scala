@@ -33,8 +33,6 @@ import org.apache.log4j.Logger
 import collection.JavaConversions._
 
 object ServerActor {
-
-
   def props(engine: Engine,cluster: Cluster): Props = Props(new ServerActor(engine,cluster))
 }
 
@@ -45,6 +43,7 @@ class ServerActor(engine: Engine,cluster: Cluster) extends Actor with ServerConf
 
   val balancing: String = config.getString("config.cluster.balancing") 
  
+  
   val loadWatcherActorRef = context.actorOf(LoadWatcherActor.props(hostname), "loadWatcherActor")
   val connectorManagerActorRef = context.actorOf(ConnectorManagerActor.props(cluster).
     withRouter(RoundRobinRouter(nrOfInstances = num_connector_manag_actor)), "ConnectorManagerActor")
@@ -81,7 +80,15 @@ class ServerActor(engine: Engine,cluster: Cluster) extends Actor with ServerConf
 	 else {
 		 APIActorRef forward message
 	 }
+    if(balancing.equals("on")){
+      val reroutee = chooseReroutee()
+      logger.info("reroutee=" + reroutee)
+      context.actorSelection(reroutee) forward ReroutedCommand(message)
+    } else {
+      APIActorRef forward message
+    }
   }
+
   def reroute(message: Query): Unit ={
   	if(balancing.equals("on")){
 		val reroutee = chooseReroutee()
@@ -91,6 +98,13 @@ class ServerActor(engine: Engine,cluster: Cluster) extends Actor with ServerConf
 	 else {
 		 parserActorRef forward message
 	}
+    if(balancing.equals("on")){
+      val reroutee = chooseReroutee()
+      logger.info("reroutee=" + reroutee)
+      context.actorSelection(reroutee) forward ReroutedQuery(message)
+    } else {
+      parserActorRef forward message
+    }
   }
 
   def receive : Receive= {

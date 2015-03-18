@@ -16,20 +16,7 @@
  * under the License.
  */
 
-package com.stratio.crossdata.common.statements.structures;
+package com.stratio.crossdata.common.logicalplan;
 
-/**
- * Enumerator that defines the different types of selectors of crossdata.
- */
-public enum SelectorType {
-    FUNCTION,
-    COLUMN,
-    ASTERISK,
-    BOOLEAN,
-    STRING,
-    INTEGER,
-    FLOATING_POINT,
-    RELATION,
-    SELECT,
-    GROUP
+public interface IOperand {
 }

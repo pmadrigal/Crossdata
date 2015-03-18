@@ -117,18 +117,6 @@ options {
         throw new ParsingException(message);
     }
 
-    public boolean checkWhereClauses(List<Relation> whereClauses){
-        if((whereClauses == null) || (whereClauses.isEmpty())){
-            return true;
-        }
-        for(Relation relation: whereClauses){
-            if(!(relation.getLeftTerm() instanceof ColumnSelector)){
-                return false;
-            }
-        }
-        return true;
-    }
-
     @Override
     public void displayRecognitionError(String[] tokenNames, RecognitionException e){        
         String hdr = getErrorHeader(e);
@@ -194,6 +182,7 @@ T_TABLES: T A B L E S;
 T_IF: I F;
 T_EXISTS: E X I S T S;
 T_AND: A N D;
+T_OR: O R;
 T_USE: U S E;
 T_SET: S E T;
 T_OPTIONS: O P T I O N S;
@@ -455,9 +444,7 @@ deleteStatement returns [DeleteStatement ds]
 		$ds = new DeleteStatement(tablename, whereClauses);
 	}:
 	T_DELETE T_FROM tablename=getTableName
-	(T_WHERE whereClauses=getWhereClauses[tablename]
-	    { if(!checkWhereClauses(whereClauses)) throwParsingException("Left terms of where clauses must be a column name"); }
-	)?
+	(T_WHERE whereClauses=getWhereClauses[tablename])?
 ;
 
 //DROP INDEX IF EXISTS index_name;
@@ -531,7 +518,6 @@ updateTableStatement returns [UpdateTableStatement pdtbst]
     (T_WHERE whereClauses=getWhereClauses[tablename])?
     (T_WITH j=getJson)?
     {
-        if(!checkWhereClauses(whereClauses)) throwParsingException("Left terms of where clauses must be a column name");
         $pdtbst = new UpdateTableStatement(tablename, assignations, whereClauses, j);
     }
 ;
@@ -638,14 +624,12 @@ selectStatement returns [SelectStatement slctst]
     T_JOIN {workaroundTablesAliasesMap = tablesAliasesMap;}
     identJoin=getAliasedTableID[workaroundTablesAliasesMap]
     T_ON { tablesAliasesMap = workaroundTablesAliasesMap; }
-    joinRelations=getWhereClauses[null] {$slctst.addJoin(new InnerJoin(identJoin, joinRelations, joinType));})*
-    (T_WHERE { if(!implicitJoin) whereInc = true;} whereClauses=getWhereClauses[null])?
+    joinRelations=getConditions[null] {$slctst.addJoin(new InnerJoin(identJoin, joinRelations, joinType));})*
+    (T_WHERE { if(!implicitJoin) whereInc = true;} whereClauses=getConditions[null])?
     (T_ORDER T_BY {orderInc = true;} orderByClauses=getOrdering[null])?
     (T_GROUP T_BY {groupInc = true;} groupByClause=getGroupBy[null])?
     (T_LIMIT {limitInc = true;} constant=T_CONSTANT)?
     {
-        if(!checkWhereClauses(whereClauses)) throwParsingException("Left terms of where clauses must be a column name");
-
         if(windowInc)
             $slctst.setWindow(window);
         if(whereInc)
@@ -843,20 +827,74 @@ getGroupBy[TableName tablename] returns [ArrayList<Selector> groups]
     (T_COMMA identN=getSelector[tablename] {groups.add(identN);})*
 ;
 
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////// POC /////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
+
+getConditions[TableName tablename] returns [List<AbstractRelation> clauses]
+    @init{
+        clauses = new ArrayList<>();
+        workaroundTable = tablename;
+    }:
+    rel1=getAbstractRelation[workaroundTable] { clauses.add(rel1); }
+            (T_AND relN=getAbstractRelation[workaroundTable] { clauses.add(relN); })*
+;
+
+getAbstractRelation[TableName tablename] returns [AbstractRelation result]
+    @init{
+        workaroundTable = tablename;
+    }:
+    rel1=getRelation[workaroundTable] { result = rel1; }
+    (T_OR rel2=getRelation[workaroundTable]
+        { result = new RelationDisjunction(rel1, rel2); } )?
+;
+
+/*
+getAbstractRelation[TableName tablename] returns [AbstractRelation result]
+    @init{
+        workaroundTable = tablename;
+    }:
+    rel1=getRelation[workaroundTable] { result = rel1; }
+    | rel2=getRelationDisjunction[workaroundTable] { result = rel2; }
+;
+*/
+
+/*
+getRelationDisjunction[TableName tablename] returns [RelationDisjunction rc]
+    @init{
+        workaroundTable = tablename;
+    }
+    @after{
+        $rc = new RelationDisjunction(leftOperand, rightOperand);
+    }:
+    rel1=getRelation[workaroundTable]
+    leftOperand=getConditions[workaroundTable]
+    T_OR
+    rightOperand=getConditions[workaroundTable]
+;
+*/
+
+/////////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////////
+
 getWhereClauses[TableName tablename] returns [ArrayList<Relation> clauses]
     @init{
         clauses = new ArrayList<>();
         workaroundTable = tablename;
     }:
-    rel1=getRelation[tablename] {clauses.add(rel1);}
-        (T_AND relN=getRelation[workaroundTable] {clauses.add(relN);})*
+    rel1=getRelation[tablename] {clauses.add(rel1);} (T_AND relN=getRelation[workaroundTable] {clauses.add(relN);})*
+
 ;
 
 getRelation[TableName tablename] returns [Relation mrel]
+    @init{
+            workaroundTable = tablename;
+    }
     @after{
         $mrel = new Relation(s, operator, rs);
     }:
-    s=getSelector[tablename] operator=getComparator rs=getSelector[tablename]
+    s=getSelector[workaroundTable] operator=getComparator rs=getInterval[workaroundTable]
+     | s=getSelector[workaroundTable] operator=getComparator rs=getSelector[workaroundTable]
 ;
 
 getFields[MutablePair pair]:
@@ -940,6 +978,24 @@ getSelector[TableName tablename] returns [Selector sel]
     (operator=getOperator {relationSelector=true;} secondSelector=getSelector[workaroundTable])?
 ;
 
+getInterval[TableName tablename] returns [Selector sel]
+    @init{
+            Selector firstSelector = null;
+            Selector lastSelector=null;
+            workaroundTable = tablename;
+        }
+    @after{
+           sel = new GroupSelector(workaroundTable,firstSelector,lastSelector);
+        }:
+    (floatingNumber=T_FLOATING {firstSelector = new FloatingPointSelector( workaroundTable,$floatingNumber.text);}
+        | constant=T_CONSTANT {firstSelector = new IntegerSelector(workaroundTable, $constant.text);}
+        | qLiteral=QUOTED_LITERAL {firstSelector = new StringSelector(workaroundTable, $qLiteral.text);})
+    T_AND
+    (floatingNumber=T_FLOATING {lastSelector = new FloatingPointSelector(workaroundTable,$floatingNumber.text);}
+        | constant=T_CONSTANT {lastSelector = new IntegerSelector(workaroundTable,$constant.text);}
+        | qLiteral=QUOTED_LITERAL {lastSelector = new StringSelector(workaroundTable,$qLiteral.text);})
+;
+
 getGenericSelector[TableName tablename] returns [Selector selector]
     @init{
         Selector firstSelector = null;
@@ -1007,6 +1063,7 @@ getComparator returns [Operator op]:
     | T_NOT_EQUAL {$op = Operator.DISTINCT;}
     | T_LIKE {$op = Operator.LIKE;}
     | T_MATCH {$op = Operator.MATCH;}
+    | T_BETWEEN {$op = Operator.BETWEEN;}
 ;
 
 getIds returns [ArrayList<String> listStrs]
