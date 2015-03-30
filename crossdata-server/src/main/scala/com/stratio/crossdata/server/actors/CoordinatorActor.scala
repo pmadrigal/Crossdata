@@ -372,7 +372,7 @@ class CoordinatorActor(connectorMgr: ActorRef, coordinator: Coordinator) extends
             val actorSelection = context.actorSelection(actorRef)
             val operation = queryWorkflow.getExecuteOperation(queryId)
             executionInfo.setRemoveOnSuccess(Execute.getClass.isInstance(operation))
-            ExecutionManager.MANAGER.createEntry(queryId, executionInfo)
+            ExecutionManager.MANAGER.createEntry(queryId, executionInfo, true)
 
             actorSelection.asInstanceOf[ActorSelection] ! operation
             log.info("\nMessage sent to " + actorRef.toString())
