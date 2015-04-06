@@ -49,6 +49,7 @@ import com.stratio.crossdata.common.data.TableName;
 import com.stratio.crossdata.common.exceptions.ManifestException;
 import com.stratio.crossdata.common.exceptions.PlanningException;
 import com.stratio.crossdata.common.manifest.FunctionType;
+import com.stratio.crossdata.common.manifest.FunctionTypeHelper;
 import com.stratio.crossdata.common.manifest.PropertyType;
 import com.stratio.crossdata.common.metadata.CatalogMetadata;
 import com.stratio.crossdata.common.metadata.ClusterAttachedMetadata;
@@ -280,7 +281,7 @@ public enum MetadataManager {
      * @throws SystemException            If the transaction manager is not available.
      * @throws NotSupportedException      If the operation is not supported.
      * @throws HeuristicRollbackException If the transaction manager decides to rollback the transaction.
-     * @throws HeuristicMixedException    If the transaction has been partially commited due to the use of a heuristic.
+     * @throws HeuristicMixedException    If the transaction has been partially committed due to the use of a heuristic.
      * @throws RollbackException          If the transaction is marked as rollback only.
      */
     public synchronized void clear()
@@ -705,7 +706,7 @@ public enum MetadataManager {
             Set<Operations> supportedOperations = new HashSet<>();
             ConnectorMetadata connectorMetadata = new ConnectorMetadata(name, version, dataStoreRefs,
                     clusterProperties, clusterPriorities, requiredProperties, optionalProperties, supportedOperations, null);
-            connectorMetadata.setActorRef(actorRef);
+            connectorMetadata.addActorRef(actorRef);
             try {
                 writeLock.lock();
                 beginTransaction();
@@ -718,7 +719,7 @@ public enum MetadataManager {
             }
         } else {
             ConnectorMetadata connectorMetadata = getConnector(name);
-            connectorMetadata.setActorRef(actorRef);
+            connectorMetadata.addActorRef(actorRef);
             createConnector(connectorMetadata, false);
         }
     }
@@ -742,9 +743,22 @@ public enum MetadataManager {
      * @param status New connector status.
      */
     public void setConnectorStatus(List<ConnectorName> names, Status status) {
-        for (ConnectorName connectorName : names) {
+        for (ConnectorName connectorName: names) {
+            removeActorRefsFromConnector(connectorName);
             setConnectorStatus(connectorName, status);
         }
+    }
+
+    private void removeActorRefsFromConnector(ConnectorName name) {
+        ConnectorMetadata connectorMetadata = getConnector(name);
+        connectorMetadata.setActorRefs(new HashSet<String>());
+        createConnector(connectorMetadata, false);
+    }
+
+    public void removeActorRefFromConnector(ConnectorName name, String actorRef){
+        ConnectorMetadata connectorMetadata = getConnector(name);
+        connectorMetadata.removeActorRef(actorRef);
+        createConnector(connectorMetadata, false);
     }
 
     /**
@@ -1202,15 +1216,15 @@ public enum MetadataManager {
      * @return A boolean with the check result.
      */
     public boolean checkInputSignature(FunctionSelector fSelector, ConnectorName connectorName)
-                    throws PlanningException {
+            throws PlanningException {
         boolean result = false;
         FunctionType ft = getFunction(connectorName, fSelector.getFunctionName());
         if(ft != null){
             String inputSignatureFromSelector = createInputSignature(fSelector, connectorName);
             String storedSignature = ft.getSignature();
             String inputStoredSignature = storedSignature.substring(0,storedSignature.lastIndexOf(":Tuple["));
-            result = inputStoredSignature.equals(inputSignatureFromSelector) || FunctionType
-                            .checkInputSignatureCompatibility(inputStoredSignature, inputSignatureFromSelector);
+            result = inputStoredSignature.equals(inputSignatureFromSelector) ||
+                    FunctionTypeHelper.checkInputSignatureCompatibility(inputStoredSignature, inputSignatureFromSelector);
         }
         return result;
     }
@@ -1272,8 +1286,10 @@ public enum MetadataManager {
             case FLOATING_POINT:
                 sb.append(new ColumnType(DataType.DOUBLE).getCrossdataType());
                 break;
-            case ASTERISK:
             case RELATION:
+                sb.append(new ColumnType(DataType.DOUBLE).getCrossdataType());
+                break;
+            case ASTERISK:
             default:
                 throw new PlanningException("The input type : "+selector.getType()+" is not supported yet");
             }

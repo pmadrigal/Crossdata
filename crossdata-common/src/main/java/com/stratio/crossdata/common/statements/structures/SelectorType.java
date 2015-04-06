@@ -31,5 +31,8 @@ public enum SelectorType {
     FLOATING_POINT,
     RELATION,
     SELECT,
-    GROUP
+    GROUP,
+    CASE_WHEN,
+    NULL,
+    LIST
 }

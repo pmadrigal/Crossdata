@@ -38,15 +38,31 @@ public class SelectStatementTest extends ParsingTest {
 
     @Test
     public void basicSelectAsteriskWithLimit() {
-        String inputText = "[test], SELECT * FROM table1 LIMIT 1;";
+        String inputText = "[test], SELECT * FROM table1 Limit 1;";
         String expectedText = "SELECT * FROM test.table1 LIMIT 1;";
         testRegularStatement(inputText, expectedText, "basicSelectAsterisk");
+    }
+
+    @Test
+    public void basicSelectWithNull() {
+        String inputText = "SELECT test.table1.id, NULL FROM test.table1;";
+        String expectedText = "SELECT test.table1.id, NULL FROM test.table1;";
+        testRegularStatement(inputText, expectedText, "basicSelectNull");
     }
 
     @Test
     public void basicSelectAsteriskWithCatalog() {
         String inputText = "SELECT * FROM catalog1.table1;";
         testRegularStatement(inputText, "basicSelectAsteriskWithCatalog");
+    }
+
+    @Test
+    public void basicSelectGroupHaving() {
+        String inputText = "SELECT * FROM catalog1.table1 GROUP BY catalog1.table1.column1 HAVING count(catalog1" +
+                ".table1.comlumn2)>5;";
+        String expectedText="SELECT * FROM catalog1.table1 GROUP BY catalog1.table1.column1 HAVING count(catalog1" +
+                ".table1.comlumn2) AS count > 5;";
+        testRegularStatement(inputText, expectedText, "basicSelectGroupHaving");
     }
 
     @Test
@@ -61,6 +77,15 @@ public class SelectStatementTest extends ParsingTest {
         String inputText = "SELECT newks.newtb.lucene FROM newks.newtb;";
         testRegularStatement(inputText, "singleColumnWithCatalog");
     }
+
+
+    @Test
+    public void caseWhenColumn() {
+        String inputText = "SELECT case when newks.newtb.a = 5 and newks.newtb.a = 3 then 'hello' when newks.newtb.a = 2 then 'bye' " +
+                "else 'puff' end FROM newks.newtb;";
+        testRegularStatement(inputText, "singleColumnWithCatalog");
+    }
+
 
     @Test
     public void functionSingleColumn() {
@@ -273,14 +298,14 @@ public class SelectStatementTest extends ParsingTest {
                 "SELECT colSales, colRevenues FROM tableClients "
                 + "INNER JOIN tableCostumers ON AssistantId = clientId "
                 + "WHERE colCity = 'Madrid' "
-                + "ORDER BY age "
-                + "GROUP BY gender;";
+                + "GROUP BY gender "
+                + "ORDER BY age;";
         String expectedText =
                 "SELECT <unknown_name>.<unknown_name>.colSales, <unknown_name>.<unknown_name>.colRevenues FROM test.tableClients "
                         + "INNER JOIN test.tableCostumers ON <unknown_name>.<unknown_name>.AssistantId = <unknown_name>.<unknown_name>.clientId "
                         + "WHERE <unknown_name>.<unknown_name>.colCity = 'Madrid' "
-                        + "ORDER BY [<unknown_name>.<unknown_name>.age] "
-                        + "GROUP BY <unknown_name>.<unknown_name>.gender;";
+                        + "GROUP BY <unknown_name>.<unknown_name>.gender "
+                        + "ORDER BY [<unknown_name>.<unknown_name>.age];";
         testRegularStatement(inputText, expectedText, "selectStatementJoinComplex");
     }
 
@@ -343,10 +368,10 @@ public class SelectStatementTest extends ParsingTest {
                 " ASC, demo.b.extracol DESC", " DESC, demo.b.extracol DESC",
                 " DESC, demo.b.extracol ASC" }) {
             String inputText =
-                    "SELECT demo.b.a FROM demo.b ORDER BY demo.b.id1 " + s + " GROUP BY demo.b.col1 LIMIT 50;";
+                    "SELECT demo.b.a FROM demo.b GROUP BY demo.b.col1 ORDER BY demo.b.id1 " + s + " LIMIT 50;";
             String expectedText =
-                    "SELECT demo.b.a FROM demo.b ORDER BY [demo.b.id1" + (s.replace(" ASC", "")) + "]"
-                            + " GROUP BY demo.b.col1 LIMIT 50;";
+                    "SELECT demo.b.a FROM demo.b GROUP BY demo.b.col1 " +
+                            "ORDER BY [demo.b.id1" + (s.replace(" ASC", "")) + "] LIMIT 50;";
             testRegularStatement(inputText, expectedText, "selectStatementCombineOrderby");
         }
     }
@@ -548,14 +573,14 @@ public class SelectStatementTest extends ParsingTest {
         String inputText =
                 "[test], SELECT colSales, colRevenues FROM tableClients "
                         + "WHERE colCity = 'Madrid' "
-                        + "ORDER BY age DESC, rating ASC "
-                        + "GROUP BY gender;";
+                        + "GROUP BY gender "
+                        + "ORDER BY age DESC, rating ASC;";
         String expectedText =
                 "SELECT <unknown_name>.<unknown_name>.colSales, <unknown_name>.<unknown_name>.colRevenues FROM test.tableClients "
                         + "WHERE <unknown_name>.<unknown_name>.colCity = 'Madrid' "
+                        + "GROUP BY <unknown_name>.<unknown_name>.gender "
                         + "ORDER BY [<unknown_name>.<unknown_name>.age DESC, " +
-                        "<unknown_name>.<unknown_name>.rating] "
-                        + "GROUP BY <unknown_name>.<unknown_name>.gender;";
+                        "<unknown_name>.<unknown_name>.rating];";
         testRegularStatement(inputText, expectedText, "selectComplex");
     }
 
@@ -628,7 +653,19 @@ public class SelectStatementTest extends ParsingTest {
         testRegularStatement(inputText, expectedText, "selectOrOperatorSimple3");
     }
 
-    /*
+    @Test
+    public void selectOrOperatorWithSimplePreference() {
+        String inputText = "SELECT * FROM test.table1 WHERE"
+                + " col1 = col2"
+                + " AND col1 = 25"
+                + " AND (col4 = 'Spain' OR col4 = 'USA');";
+        String expectedText = "SELECT * FROM test.table1 WHERE"
+                + " <UNKNOWN_NAME>.<UNKNOWN_NAME>.col1 = <UNKNOWN_NAME>.<UNKNOWN_NAME>.col2"
+                + " AND <UNKNOWN_NAME>.<UNKNOWN_NAME>.col1 = 25"
+                + " AND (<UNKNOWN_NAME>.<UNKNOWN_NAME>.col4 = 'Spain' OR <UNKNOWN_NAME>.<UNKNOWN_NAME>.col4 = 'USA');";
+        testRegularStatement(inputText, expectedText, "selectOrOperatorWithSimplePreference");
+    }
+
     @Test
     public void selectOrOperatorWithPreference() {
         String inputText = "SELECT * FROM test.table1 WHERE"
@@ -636,7 +673,7 @@ public class SelectStatementTest extends ParsingTest {
                 + " AND col1 = 25"
                 + " AND col3 = 'test'"
                 + " AND ((col4 = 'Spain' AND col5 = 'USA')"
-                     + " OR (col4 = 'USA' AND col5 = 'Spain'))"
+                + " OR (col4 = 'USA' AND col5 = 'Spain'))"
                 + " AND col6 = 13022013;";
         String expectedText = "SELECT * FROM test.table1 WHERE"
                 + " <UNKNOWN_NAME>.<UNKNOWN_NAME>.col1 = <UNKNOWN_NAME>.<UNKNOWN_NAME>.col2"
@@ -647,6 +684,80 @@ public class SelectStatementTest extends ParsingTest {
                 + " AND <UNKNOWN_NAME>.<UNKNOWN_NAME>.col6 = 13022013;";
         testRegularStatement(inputText, expectedText, "selectOrOperatorWithPreference");
     }
-    */
+
+    @Test
+    public void selectWithPreferenceOperatorsSimple1(){
+        String inputText = "SELECT "
+                + "name, "
+                + "size*retailprice "
+                + "FROM part "
+                + "ORDER BY name;";
+        String expectedText = "SELECT "
+                + "<UNKNOWN_NAME>.<UNKNOWN_NAME>.name, "
+                + "<UNKNOWN_NAME>.<UNKNOWN_NAME>.size * <UNKNOWN_NAME>.<UNKNOWN_NAME>.retailprice "
+                + "FROM demo.part "
+                + "ORDER BY [<UNKNOWN_NAME>.<UNKNOWN_NAME>.name];";
+        testRegularStatementSession("demo", inputText, expectedText, "selectWithPreferenceOperatorsSimple1");
+    }
+
+    @Test
+    public void selectWithPreferenceOperatorsSimple2(){
+        String inputText = "SELECT "
+                + "name, "
+                + "(2/retailprice) "
+                + "FROM part;";
+        String expectedText = "SELECT "
+                + "<UNKNOWN_NAME>.<UNKNOWN_NAME>.name, "
+                + "(2 / <UNKNOWN_NAME>.<UNKNOWN_NAME>.retailprice) "
+                + "FROM demo.part;";
+        testRegularStatementSession("demo", inputText, expectedText, "selectWithPreferenceOperatorsSimple2");
+    }
+
+    @Test
+    public void selectWithPreferenceOperators(){
+        String inputText = "SELECT "
+                + "name, "
+                + "size*retailprice, "
+                + "(2*retailprice), "
+                + "sum(size*(1-size)*(1+retailprice)) as sum_charge, "
+                + "avg(size) as avg_size, "
+                + "count(*) as count_order "
+                + "FROM part "
+                + "WHERE "
+                + "date <= '1998-12-01' - interval('1998-12-01', 3) "
+                + "GROUP BY name "
+                + "ORDER BY name;";
+        String expectedText = "SELECT "
+                + "<UNKNOWN_NAME>.<UNKNOWN_NAME>.name, "
+                + "<UNKNOWN_NAME>.<UNKNOWN_NAME>.size * <UNKNOWN_NAME>.<UNKNOWN_NAME>.retailprice, "
+                + "(2 * <UNKNOWN_NAME>.<UNKNOWN_NAME>.retailprice), "
+                + "sum(<UNKNOWN_NAME>.<UNKNOWN_NAME>.size * (1 - <UNKNOWN_NAME>.<UNKNOWN_NAME>.size) * " +
+                        "(1 + <UNKNOWN_NAME>.<UNKNOWN_NAME>.retailprice)) AS sum_charge, "
+                + "avg(<UNKNOWN_NAME>.<UNKNOWN_NAME>.size) AS avg_size, "
+                + "count(*) AS count_order "
+                + "FROM demo.part "
+                + "WHERE "
+                + "<UNKNOWN_NAME>.<UNKNOWN_NAME>.date <= '1998-12-01' - interval('1998-12-01', 3) AS interval "
+                + "GROUP BY <UNKNOWN_NAME>.<UNKNOWN_NAME>.name "
+                + "ORDER BY [<UNKNOWN_NAME>.<UNKNOWN_NAME>.name];";
+        testRegularStatementSession("demo", inputText, expectedText, "selectWithPreferenceOperators");
+    }
+
+    @Test
+    public void selectWithListType(){
+        String inputText = "SELECT "
+                + "id, "
+                + "name, "
+                + "position "
+                + "FROM players "
+                + "WHERE position IN ['midfielder', 'striker'];";
+        String expectedText = "SELECT "
+                + "<UNKNOWN_NAME>.<UNKNOWN_NAME>.id, "
+                + "<UNKNOWN_NAME>.<UNKNOWN_NAME>.name, "
+                + "<UNKNOWN_NAME>.<UNKNOWN_NAME>.position "
+                + "FROM team.players "
+                + "WHERE <UNKNOWN_NAME>.<UNKNOWN_NAME>.position IN ['midfielder', 'striker'];";
+        testRegularStatementSession("team", inputText, expectedText, "selectWithListType");
+    }
 
 }

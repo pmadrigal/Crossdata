@@ -24,6 +24,7 @@ import static org.testng.Assert.fail;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -60,6 +61,7 @@ import com.stratio.crossdata.common.logicalplan.Project;
 import com.stratio.crossdata.common.logicalplan.Select;
 import com.stratio.crossdata.common.logicalplan.UnionStep;
 import com.stratio.crossdata.common.logicalplan.Window;
+import com.stratio.crossdata.common.manifest.FunctionType;
 import com.stratio.crossdata.common.metadata.CatalogMetadata;
 import com.stratio.crossdata.common.metadata.ColumnMetadata;
 import com.stratio.crossdata.common.metadata.ColumnType;
@@ -139,9 +141,9 @@ public class PlannerExecutionWorkflowTest extends PlannerBaseTest {
         clusterWithTopPriority.put(new ClusterName(strClusterName), 1);
 
         connector1 = MetadataManagerTestHelper.HELPER.createTestConnector("TestConnector1", dataStoreName, clusterWithDefaultPriority, operationsC1,
-                        "actorRef1");
+                        "actorRef1", new ArrayList<FunctionType>());
         connector2 = MetadataManagerTestHelper.HELPER.createTestConnector("TestConnector2", dataStoreName, clusterWithDefaultPriority, operationsC2,
-                        "actorRef2");
+                        "actorRef2", new ArrayList<FunctionType>());
 
 
         clusterName = MetadataManagerTestHelper.HELPER.createTestCluster(strClusterName, dataStoreName, connector1.getName());
@@ -159,7 +161,10 @@ public class PlannerExecutionWorkflowTest extends PlannerBaseTest {
      */
     public Project getProject(String tableName, ColumnName... columns) {
         Operations operation = Operations.PROJECT;
-        Project project = new Project(operation, new TableName("demo", tableName), new ClusterName("TestCluster1"));
+        Project project = new Project(
+                Collections.singleton(operation),
+                new TableName("demo", tableName),
+                new ClusterName("TestCluster1"));
         for (ColumnName cn : columns) {
             project.addColumn(cn);
         }
@@ -168,7 +173,9 @@ public class PlannerExecutionWorkflowTest extends PlannerBaseTest {
 
     public Filter getFilter(Operations operation, ColumnName left, Operator operator, Selector right) {
         Relation relation = new Relation(new ColumnSelector(left), operator, right);
-        Filter filter = new Filter(operation, relation);
+        Filter filter = new Filter(
+                Collections.singleton(operation),
+                relation);
         return filter;
     }
 
@@ -184,7 +191,11 @@ public class PlannerExecutionWorkflowTest extends PlannerBaseTest {
             typeMapFromColumnName.put(cs, types[index]);
             typeMap.put(columns[index].getName(), types[index]);
         }
-        Select select = new Select(operation, columnMap, typeMap, typeMapFromColumnName);
+        Select select = new Select(
+                Collections.singleton(operation),
+                columnMap,
+                typeMap,
+                typeMapFromColumnName);
         return select;
     }
 
@@ -193,7 +204,9 @@ public class PlannerExecutionWorkflowTest extends PlannerBaseTest {
     }
 
     public Join getJoin(String joinId, Relation... relations) {
-        Join j = new Join(Operations.SELECT_INNER_JOIN, joinId);
+        Join j = new Join(
+                Collections.singleton(Operations.SELECT_INNER_JOIN),
+                joinId);
         for (Relation r : relations) {
             j.addJoinRelation(r);
         }
@@ -633,7 +646,9 @@ public class PlannerExecutionWorkflowTest extends PlannerBaseTest {
         Relation r = new Relation(new ColumnSelector(columns1[0]), Operator.EQ,
                 new ColumnSelector(columns2[0]));
 
-        Window streamingWindow = new Window(Operations.SELECT_WINDOW, WindowType.NUM_ROWS);
+        Window streamingWindow = new Window(
+                Collections.singleton(Operations.SELECT_WINDOW),
+                WindowType.NUM_ROWS);
         streamingWindow.setNumRows(10);
 
         Join join = getJoin("joinId", r);
@@ -689,7 +704,7 @@ public class PlannerExecutionWorkflowTest extends PlannerBaseTest {
 
         try {
             connectorMetadata = MetadataManagerTestHelper.HELPER.createTestConnector("cassandraConnector", dataStoreName,
-                            clusterWithDefaultPriority, operations, "ActorRefTest");
+                            clusterWithDefaultPriority, operations, "ActorRefTest", new ArrayList<FunctionType>());
         } catch (ManifestException e) {
             fail();
         }
@@ -734,7 +749,7 @@ public class PlannerExecutionWorkflowTest extends PlannerBaseTest {
         StorageStatement insertIntoStatement = new InsertIntoStatement(new TableName("demo", "users"), columns,
                 null, values, true, null, null, InsertIntoStatement.TYPE_VALUES_CLAUSE);
 
-        BaseQuery baseQuery = new BaseQuery("insertId", query, new CatalogName("system"));
+        BaseQuery baseQuery = new BaseQuery("insertId", query, new CatalogName("system"),"sessionTest");
 
         StorageParsedQuery parsedQuery = new StorageParsedQuery(baseQuery, insertIntoStatement);
         StorageValidatedQuery storageValidatedQuery = new StorageValidatedQuery(parsedQuery);
@@ -755,7 +770,7 @@ public class PlannerExecutionWorkflowTest extends PlannerBaseTest {
 
         DropCatalogStatement dropCatalogStatement = new DropCatalogStatement(new CatalogName("demo2"), true);
         String query = "Drop Catalog demo2;";
-        BaseQuery baseQuery = new BaseQuery("dropId", query, new CatalogName("demo2"));
+        BaseQuery baseQuery = new BaseQuery("dropId", query, new CatalogName("demo2"),"sessionTest");
         MetadataParsedQuery metadataParsedQuery = new MetadataParsedQuery(baseQuery, dropCatalogStatement);
         MetadataValidatedQuery metadataValidatedQuery = new MetadataValidatedQuery(metadataParsedQuery);
 
@@ -774,7 +789,7 @@ public class PlannerExecutionWorkflowTest extends PlannerBaseTest {
         String options = "{comment:'the new comment'}";
         AlterCatalogStatement alterCatalogStatement = new AlterCatalogStatement(new CatalogName("demo2"), options);
         String query = "ALTER CATALOG demo2 WITH {comment:'the new comment'};";
-        BaseQuery baseQuery = new BaseQuery("alterId", query, new CatalogName("demo2"));
+        BaseQuery baseQuery = new BaseQuery("alterId", query, new CatalogName("demo2"),"sessionTest");
         MetadataParsedQuery metadataParsedQuery = new MetadataParsedQuery(baseQuery, alterCatalogStatement);
         MetadataValidatedQuery metadataValidatedQuery = new MetadataValidatedQuery(metadataParsedQuery);
 
@@ -800,7 +815,7 @@ public class PlannerExecutionWorkflowTest extends PlannerBaseTest {
         AlterTableStatement alterTableStatement = new AlterTableStatement(columnMetadata.getName().getTableName(),
                 columnMetadata.getName(), new ColumnType(DataType.VARCHAR), null, AlterOperation.ALTER_COLUMN);
         String query = "ALTER TABLE demo.table3 ALTER table3.email TYPE varchar;";
-        BaseQuery baseQuery = new BaseQuery("alterTableId", query, new CatalogName("demo"));
+        BaseQuery baseQuery = new BaseQuery("alterTableId", query, new CatalogName("demo"),"sessionTest");
         MetadataParsedQuery metadataParsedQuery = new MetadataParsedQuery(baseQuery, alterTableStatement);
         MetadataValidatedQuery metadataValidatedQuery = new MetadataValidatedQuery(metadataParsedQuery);
 

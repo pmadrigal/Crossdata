@@ -41,6 +41,7 @@ import com.stratio.crossdata.common.data.ClusterName;
 import com.stratio.crossdata.common.data.DataStoreName;
 import com.stratio.crossdata.common.exceptions.ManifestException;
 import com.stratio.crossdata.common.exceptions.UnsupportedException;
+import com.stratio.crossdata.common.manifest.FunctionType;
 import com.stratio.crossdata.common.metadata.ColumnType;
 import com.stratio.crossdata.common.metadata.ConnectorMetadata;
 import com.stratio.crossdata.common.metadata.DataType;
@@ -90,7 +91,7 @@ public class ExplainPlanAPIManagerTest {
         clusterWithDefaultPriority.put(new ClusterName(strClusterName), Constants.DEFAULT_PRIORITY);
 
         connector1 = MetadataManagerTestHelper.HELPER.createTestConnector(
-                "TestConnector1", dataStoreName, clusterWithDefaultPriority, operationsC1, "actorRef1");
+                "TestConnector1", dataStoreName, clusterWithDefaultPriority, operationsC1, "actorRef1", new ArrayList<FunctionType>());
         clusterName = MetadataManagerTestHelper.HELPER.
                 createTestCluster(strClusterName, dataStoreName, connector1.getName());
 
@@ -119,13 +120,13 @@ public class ExplainPlanAPIManagerTest {
         List<Object> params = new ArrayList<>();
         params.add(statement);
         params.add("demo");
-        return new Command("QID", APICommand.EXPLAIN_PLAN(), params);
+        return new Command("QID", APICommand.EXPLAIN_PLAN(), params,"sessionTest");
     }
 
     @Test
     public void invalidExplainRequest() {
         List<Object> params = new ArrayList<>();
-        Command cmd = new Command("QID", APICommand.EXPLAIN_PLAN(), params);
+        Command cmd = new Command("QID", APICommand.EXPLAIN_PLAN(), params,"sessionTest");
         Result r = MetadataManagerTestHelper.HELPER.getApiManager().processRequest(cmd);
         assertNotNull(r, "Expecting result");
         assertEquals(r.getClass(), ErrorResult.class, "Expecting error result");

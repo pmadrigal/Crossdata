@@ -15,26 +15,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package com.stratio.crossdata.common.metadata;
 
-package com.stratio.crossdata.sh;
+import java.io.Serializable;
 
-import static org.testng.Assert.assertNotNull;
-
-import java.net.URL;
-
-import org.testng.annotations.Test;
-
-public class CrossdatashTestIT {
-
-    @Test(timeOut = 12000)
-    public void testSendManifest() throws Exception {
-        Shell xdsh = new Shell(false);
-        xdsh.connect();
-        URL url = Thread.currentThread().getContextClassLoader()
-                .getResource("com/stratio/crossdata/connector/DataStoreDefinition.xml");
-        String result = url.getPath();
-        assertNotNull(result, "testSendManifest returns NULL");
-        xdsh.closeConsole();
-    }
-
+/**
+ * Interface to Catalog, Table, Cluster, Datastore and Connector metadata classes.
+ */
+public interface UpdatableMetadata extends Serializable{
 }
