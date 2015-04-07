@@ -20,8 +20,10 @@ package com.stratio.crossdata.common.logicalplan;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 import com.stratio.crossdata.common.metadata.Operations;
+import com.stratio.crossdata.common.statements.structures.AbstractRelation;
 import com.stratio.crossdata.common.statements.structures.Selector;
 
 /**
@@ -36,14 +38,37 @@ public class GroupBy extends TransformationStep {
     private List<Selector> ids = new ArrayList<>();
 
     /**
+     * Having Identifiers.
+     */
+    private List<AbstractRelation> havingIds = new ArrayList<>();
+
+    /**
+     * Whether a having clause has been specified.
+     */
+    private boolean havingInc=false;
+
+    /**
      * Class constructor.
      *
-     * @param operation The operation to be applied.
+     * @param operations The operations to be applied.
      * @param ids Identifiers.
      */
-    public GroupBy(Operations operation, List<Selector> ids) {
-        super(operation);
+    public GroupBy(Set<Operations> operations, List<Selector> ids) {
+        super(operations);
         this.ids = ids;
+    }
+
+    /**
+     * Class constructor.
+     *
+     * @param operations The operations to be applied.
+     * @param ids Identifiers.
+     */
+    public GroupBy(Set<Operations> operations, List<Selector> ids, List<AbstractRelation> havingIds) {
+        super(operations);
+        this.ids = ids;
+        this.havingIds=havingIds;
+        this.havingInc=true;
     }
 
     /**
@@ -62,6 +87,22 @@ public class GroupBy extends TransformationStep {
         this.ids = ids;
     }
 
+    /**
+     * Get Having Identifiers.
+     * @return Identifiers.
+     */
+    public List<AbstractRelation> getHavingIds() {
+        return havingIds;
+    }
+
+    /**
+     * Set identifiers.
+     * @param havingIds Identifiers to be assigned.
+     */
+    public void setHavingIds(List<AbstractRelation> havingIds) {
+        this.havingIds = havingIds;
+    }
+
     @Override public String toString() {
         StringBuilder sb = new StringBuilder();
         sb.append("GROUP BY ");
@@ -71,6 +112,19 @@ public class GroupBy extends TransformationStep {
             sb.append(selector);
             if(iter.hasNext()){
                 sb.append(", ");
+            }
+        }
+
+        if (havingInc){
+            sb.append(" HAVING ");
+            boolean first=true;
+            for (AbstractRelation relation:havingIds){
+                if (!first){
+                    sb.append(" AND ");
+                }
+                first=false;
+                sb.append(relation.toString());
+
             }
         }
         return sb.toString();

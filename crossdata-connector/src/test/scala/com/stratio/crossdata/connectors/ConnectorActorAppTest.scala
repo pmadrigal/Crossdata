@@ -30,15 +30,15 @@ import com.stratio.crossdata.common.logicalplan.{TransformationStep, LogicalStep
 import com.stratio.crossdata.common.metadata.{Operations, ColumnMetadata, IndexMetadata, TableMetadata}
 import com.stratio.crossdata.common.result.{MetadataResult, QueryResult, StorageResult}
 import com.stratio.crossdata.common.statements.structures.Selector
-import com.stratio.crossdata.communication.{Execute, CreateTable, Insert}
 import com.typesafe.config.ConfigFactory
 import org.apache.log4j.Logger
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.{Suite, FunSuite}
-import org.testng.Assert.{assertNotNull}
+import org.testng.Assert.assertNotNull
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
+import java.util.Collections
 import java.util.UUID
 import com.stratio.crossdata.communication.Execute
 import scala.Some
@@ -83,7 +83,7 @@ class ConnectorActorAppTest extends TestKit(ActorSystem()) with FunSuite with Mo
     val m = mock[IConnector]
     val qe = mock[IQueryEngine]
     (m.getQueryEngine _).expects().returning(qe)
-    (qe.execute(_:LogicalWorkflow)).expects(*).returning(QueryResult.createQueryResult(new ResultSet(), 0, true))
+    (qe.execute(_:LogicalWorkflow)).expects(*).returning(QueryResult.createQueryResult(UUID.randomUUID().toString, new ResultSet(), 0, true))
     (m.getConnectorName _).expects().returning(connector)
     (m.init _).expects(*).returning(None)
     (m.getConnectorName _).expects().returning(connector)
@@ -93,7 +93,7 @@ class ConnectorActorAppTest extends TestKit(ActorSystem()) with FunSuite with Mo
     val c = new ConnectorApp()
     val myReference = c.startup(m)
     val steps: java.util.ArrayList[LogicalStep] = new java.util.ArrayList[LogicalStep]()
-    val step = new TransformationStep(Operations.SELECT_OPERATOR)
+    val step = new TransformationStep(Collections.singleton(Operations.SELECT_OPERATOR))
     steps.add(step)
     val workflow = new LogicalWorkflow(steps)
     within(6000 millis) {
@@ -116,7 +116,7 @@ class ConnectorActorAppTest extends TestKit(ActorSystem()) with FunSuite with Mo
     val port = "2560"
     val m = mock[IConnector]
     val me = mock[IMetadataEngine]
-    (me.createTable _).expects(*,*).returning(QueryResult.createQueryResult(new ResultSet(), 0, true))
+    (me.createTable _).expects(*,*).returning(QueryResult.createQueryResult(UUID.randomUUID().toString, new ResultSet(), 0, true))
     (m.getMetadataEngine _).expects().returning(me)
     (m.getConnectorName _).expects().returning("My New Connector")
     (m.init _).expects(*).returning(None)

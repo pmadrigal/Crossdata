@@ -25,10 +25,11 @@ MemberRemoved, UnreachableMember, CurrentClusterState, MemberUp, ClusterDomainEv
 import com.stratio.crossdata.common.connector.ConnectorClusterConfig
 import com.stratio.crossdata.common.data
 import com.stratio.crossdata.common.data.{NodeName, ConnectorName, Status}
+import com.stratio.crossdata.common.executionplan.{ResultType, ExecutionType, ManagementWorkflow, ExecutionWorkflow}
 import com.stratio.crossdata.common.result.{ErrorResult, Result, ConnectResult}
 import com.stratio.crossdata.common.utils.StringUtils
 import com.stratio.crossdata.communication.{replyConnectorName, getConnectorName,Connect}
-import com.stratio.crossdata.core.execution.ExecutionManager
+import com.stratio.crossdata.core.execution.{ExecutionInfo, ExecutionManager}
 import com.stratio.crossdata.core.loadWatcher.LoadWatcherManager
 import com.stratio.crossdata.core.metadata.MetadataManager
 import org.apache.log4j.Logger
@@ -36,7 +37,7 @@ import org.apache.log4j.Logger
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 import com.stratio.crossdata.common.statements.structures.SelectorHelper
-import java.util.UUID
+import java.util.{Collections, UUID}
 
 object ConnectorManagerActor {
   def props(cluster:Cluster): Props = Props(new ConnectorManagerActor(cluster))
@@ -46,7 +47,7 @@ class ConnectorManagerActor(cluster:Cluster) extends Actor with ActorLogging {
 
   lazy val logger = Logger.getLogger(classOf[ConnectorManagerActor])
   logger.info("Lifting connector manager actor")
-  val coordinatorActorRef = context.actorSelection("../CoordinatorActor")
+  val coordinatorActorRef = context.actorSelection("../../CoordinatorActor")//context.actorSelection("../CoordinatorActor")
   var connectorsAlreadyReset = false
 
   log.info("Lifting connector manager actor")
@@ -102,7 +103,6 @@ class ConnectorManagerActor(cluster:Cluster) extends Actor with ActorLogging {
       val connectorMetadata = MetadataManager.MANAGER.getConnector(connectorName)
       val clusterProps = connectorMetadata.getClusterProperties
 
-
       if((clusterProps != null) && (!clusterProps.isEmpty)){
 
         for(clusterProp <- clusterProps.entrySet()){
@@ -118,7 +118,17 @@ class ConnectorManagerActor(cluster:Cluster) extends Actor with ActorLogging {
 
           clusterConfig.setDataStoreName(clusterMetadata.getDataStoreRef)
 
-          sender ! new Connect(UUID.randomUUID().toString, null, clusterConfig)
+
+          val reconnectQueryUUID = UUID.randomUUID().toString
+          val executionInfo = new ExecutionInfo
+          executionInfo.setRemoveOnSuccess(true)
+          executionInfo.setUpdateOnSuccess(true)
+          val executionWorkflow = new ManagementWorkflow(reconnectQueryUUID, Collections.emptySet[String](), ExecutionType.ATTACH_CONNECTOR,ResultType.RESULTS)
+          executionWorkflow.setClusterName(clusterName)
+          executionInfo.setWorkflow(executionWorkflow)
+          ExecutionManager.MANAGER.createEntry(reconnectQueryUUID, executionInfo)
+
+          sender ! new Connect(reconnectQueryUUID, null, clusterConfig)
         }
       }
       MetadataManager.MANAGER.setConnectorStatus(connectorName, Status.ONLINE)
@@ -127,7 +137,7 @@ class ConnectorManagerActor(cluster:Cluster) extends Actor with ActorLogging {
 
     case c: ConnectResult => {
       logger.info("Connect result from " + sender + " => " + c.getSessionId)
-      coordinatorActorRef ! c
+      coordinatorActorRef forward c
     }
 
     case er: ErrorResult => {
@@ -166,11 +176,12 @@ class ConnectorManagerActor(cluster:Cluster) extends Actor with ActorLogging {
     case member: MemberRemoved => {
       logger.info("Member is Removed: " + member.member.address)
       logger.info("Member info: " + member.toString)
-      val actorRefUri = StringUtils.getAkkaActorRefUri(member.member.address, false)
-      if(ExecutionManager.MANAGER.exists(actorRefUri + "/user/ConnectorActor/")){
-        val connectorName = ExecutionManager.MANAGER.getValue(actorRefUri + "/user/ConnectorActor/")
-        MetadataManager.MANAGER.setConnectorStatus(connectorName.asInstanceOf[ConnectorName], Status.OFFLINE)
+      val actorRefUri = StringUtils.getAkkaActorRefUri(member.member.address, false)+"/user/ConnectorActor/"
+      if(ExecutionManager.MANAGER.exists(actorRefUri)){
+        val connectorName = ExecutionManager.MANAGER.getValue(actorRefUri)
+        MetadataManager.MANAGER.removeActorRefFromConnector(connectorName.asInstanceOf[ConnectorName], actorRefUri)
         MetadataManager.MANAGER.setNodeStatus(new NodeName(member.member.address.toString), Status.OFFLINE)
+        ExecutionManager.MANAGER.deleteEntry(actorRefUri)
       }
       // example of member.member.address = akka.tcp://CrossdataServerCluster@127.0.0.1:13421
       val lwmkey=member.member.address.toString.split("@")(1).split(":")(0)
@@ -183,7 +194,7 @@ class ConnectorManagerActor(cluster:Cluster) extends Actor with ActorLogging {
       logger.info("Member is exiting: " + member.member.address)
       val actorRefUri = StringUtils.getAkkaActorRefUri(sender, false)
       val connectorName = ExecutionManager.MANAGER.getValue(actorRefUri)
-      MetadataManager.MANAGER.setConnectorStatus(connectorName.asInstanceOf[ConnectorName], Status.SHUTTING_DOWN)
+      MetadataManager.MANAGER.removeActorRefFromConnector(connectorName.asInstanceOf[ConnectorName], actorRefUri)
       MetadataManager.MANAGER.setNodeStatus(new NodeName(member.member.address.toString), Status.OFFLINE)
     }
 

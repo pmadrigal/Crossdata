@@ -84,13 +84,7 @@
     </properties>
 
     <dependencies>
-
         <!-- CONNECTOR INTERFACE AND ALL THE CONNECTORS -->
-        <dependency>
-            <groupId>com.stratio.crossdata</groupId>
-            <artifactId>crossdata-core</artifactId>
-            <version>${project.parent.version}</version>
-        </dependency>
         <dependency>
             <groupId>com.stratio.crossdata</groupId>
             <artifactId>crossdata-common</artifactId>
@@ -202,6 +196,11 @@
                     <groupId>org.scala-lang</groupId>
                 </exclusion>
             </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>com.typesafe.akka</groupId>
+            <artifactId>akka-agent_2.10</artifactId>
+            <version>${akka.version}</version>
         </dependency>
         <dependency>
             <groupId>com.typesafe</groupId>

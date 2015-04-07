@@ -505,12 +505,12 @@ public class APIManager {
                         .append(Arrays.toString(connector.getDataStoreRefs().toArray()));
             }
             // ActorRef
-            if (connector.getActorRef() == null) {
+            if ((connector.getActorRefs() == null) || (connector.getActorRefs().isEmpty())) {
                 sb = sb.append("\t")
                         .append("UNKNOWN");
             } else {
                 sb = sb.append("\t")
-                        .append(connector.getActorRef());
+                        .append(connector.getActorRefs());
             }
 
             sb = sb.append(System.getProperty("line.separator"));
@@ -550,12 +550,13 @@ public class APIManager {
         try {
             List<ConnectorMetadata> connectors = MetadataManager.MANAGER.getConnectors();
             MetadataManager.MANAGER.clear();
-            ExecutionManager.MANAGER.clear();
             for (ConnectorMetadata cm : connectors) {
                 if (cm.getStatus() == Status.ONLINE) {
                     ConnectorName connectorName = cm.getName();
-                    String actorRef = cm.getActorRef();
-                    MetadataManager.MANAGER.addConnectorRef(connectorName, actorRef);
+                    Set<String> actorRefs = cm.getActorRefs();
+                    for(String actorRef: actorRefs){
+                        MetadataManager.MANAGER.addConnectorRef(connectorName, actorRef);
+                    }
                     MetadataManager.MANAGER.setConnectorStatus(connectorName, Status.ONLINE);
                 }
             }
@@ -570,6 +571,9 @@ public class APIManager {
     private Result cleanMetadata() {
         Result result = CommandResult.createCommandResult("Metadata cleaned.");
         try {
+            for (CatalogMetadata catalogMetadata : MetadataManager.MANAGER.getCatalogs()) {
+                MetadataManager.MANAGER.removeCatalogFromClusters(catalogMetadata.getName());
+            }
             MetadataManager.MANAGER.clearCatalogs();
             ExecutionManager.MANAGER.clear();
         } catch (SystemException | NotSupportedException | HeuristicRollbackException | HeuristicMixedException | RollbackException
@@ -775,7 +779,7 @@ public class APIManager {
             StringBuilder plan = new StringBuilder("Explain plan for: ");
             plan.append(statement).append(System.lineSeparator());
             String realStatement=statement.substring(17);
-            BaseQuery query = new BaseQuery(cmd.queryId(), realStatement, new CatalogName(catalog));
+            BaseQuery query = new BaseQuery(cmd.queryId(), realStatement, new CatalogName(catalog), cmd.sessionId());
             try {
                 IParsedQuery parsedQuery = parser.parse(query);
                 IValidatedQuery validatedQuery = validator.validate(parsedQuery);

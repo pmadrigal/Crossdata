@@ -70,6 +70,30 @@ public class PlannerLogicalWorkflowTest extends PlannerBaseTest {
     }
 
     @Test
+    public void selectSingleNullColumn() {
+        String inputText = "SELECT NULL FROM demo.t1;";
+        String[] expectedColumns = {  };
+
+        String[] columnsT1 = { "a" };
+        ColumnType[] columnTypes1 = { new ColumnType(DataType.INT) };
+        String[] partitionKeys1 = { "a" };
+        String[] clusteringKeys1 = { };
+        TableMetadata t1 = MetadataManagerTestHelper.HELPER.defineTable(new ClusterName("c"), "demo", "t1", columnsT1,
+                columnTypes1,
+                partitionKeys1, clusteringKeys1);
+
+        LogicalWorkflow workflow = null;
+        try {
+            workflow = getWorkflowNonParsed(inputText, "selectSingleNullColumn", t1);
+        } catch (PlanningException e) {
+            fail("LogicalWorkflow couldn't be calculated");
+        }
+        assertNumberInitialSteps(workflow, 1);
+        assertColumnsInProject(workflow, "demo.t1", expectedColumns);
+        assertSelect(workflow);
+    }
+
+    @Test
     public void selectMultipleColumns() {
         String inputText = "SELECT demo.t1.a, demo.t1.b, demo.t1.c FROM demo.t1;";
         String[] expectedColumns = { "demo.t1.a", "demo.t1.b", "demo.t1.c" };
@@ -89,6 +113,55 @@ public class PlannerLogicalWorkflowTest extends PlannerBaseTest {
             fail("LogicalWorkflow couldn't be calculated");
         }
         assertColumnsInProject(workflow, "demo.t1", expectedColumns);
+        assertSelect(workflow);
+    }
+
+    @Test
+    public void selectMultipleColumnsWithNull() {
+        String inputText = "SELECT demo.t1.a, demo.t1.b, demo.t1.c, NULL FROM demo.t1;";
+        String[] expectedColumns = { "demo.t1.a", "demo.t1.b", "demo.t1.c" };
+
+        String[] columnsT1 = { "a", "b", "c" };
+        ColumnType[] columnTypes1 = { new ColumnType(DataType.INT),
+                new ColumnType(DataType.INT), new ColumnType(DataType.INT) };
+        String[] partitionKeys1 = { "a" };
+        String[] clusteringKeys1 = { };
+        TableMetadata t1 = MetadataManagerTestHelper.HELPER.defineTable(new ClusterName("c"), "demo", "t1", columnsT1, columnTypes1,
+                partitionKeys1, clusteringKeys1);
+
+        LogicalWorkflow workflow = null;
+        try {
+            workflow = getWorkflow(inputText, "selectMultipleColumnWithNull", t1);
+        } catch (PlanningException e) {
+            fail("LogicalWorkflow couldn't be calculated");
+        }
+        assertColumnsInProject(workflow, "demo.t1", expectedColumns);
+        assertSelect(workflow);
+    }
+
+
+    @Test
+    public void selectCaseWhenColumns() {
+        String inputText = "SELECT demo.t1.a, case when demo.t1.b = 1 or demo.t1.b = 7 then 'hola' when demo.t1.b = " +
+                "2 " +
+                "then 'adios' " +
+                "else 'otro' end FROM demo.t1;";
+        String[] expectedColumns = { "demo.t1.a", "CASE-WHEN_*" };
+
+        String[] columnsT1 = { "a", "b" };
+        ColumnType[] columnTypes1 = { new ColumnType(DataType.INT),
+                new ColumnType(DataType.INT) };
+        String[] partitionKeys1 = { "a" };
+        String[] clusteringKeys1 = { };
+        TableMetadata t1 = MetadataManagerTestHelper.HELPER.defineTable(new ClusterName("c"), "demo", "t1", columnsT1, columnTypes1,
+                partitionKeys1, clusteringKeys1);
+
+        LogicalWorkflow workflow = null;
+        try {
+            workflow = getWorkflow(inputText, "selectCaseWhenColumn", t1);
+        } catch (PlanningException e) {
+            fail("LogicalWorkflow couldn't be calculated");
+        }
         assertSelect(workflow);
     }
 
@@ -464,6 +537,59 @@ public class PlannerLogicalWorkflowTest extends PlannerBaseTest {
         assertFilterInPath(project1, Operations.FILTER_PK_EQ);
         assertSelect(workflow);
     }
+
+    @Test
+    public void selectBasicLikeWhere() {
+        String inputText = "SELECT demo.t1.a, demo.t1.b, demo.t1.c FROM demo.t1 WHERE demo.t1.a like '?abc*';";
+        String[] columns1 = { "a", "b", "c" };
+        ColumnType[] columnTypes1 = {
+                new ColumnType(DataType.TEXT),
+                new ColumnType(DataType.INT),
+                new ColumnType(DataType.INT) };
+        String[] partitionKeys1 = { "a" };
+        String[] clusteringKeys1 = { };
+        TableMetadata t1 = MetadataManagerTestHelper.HELPER.defineTable(new ClusterName("c"), "demo", "t1", columns1, columnTypes1,
+                partitionKeys1, clusteringKeys1);
+
+        String[] expectedColumns = { "demo.t1.a", "demo.t1.b", "demo.t1.c" };
+        LogicalWorkflow workflow = null;
+        try {
+            workflow = getWorkflow(inputText, "selectBasicWhere", t1);
+        } catch (PlanningException e) {
+            fail("LogicalWorkflow couldn't be calculated");
+        }
+        Project project1 = assertColumnsInProject(workflow, "demo.t1", expectedColumns);
+        assertFilterInPath(project1, Operations.FILTER_PK_LIKE);
+        assertSelect(workflow);
+    }
+
+
+    @Test
+    public void selectBasicWhereGroupHaving() {
+        String inputText = "SELECT demo.t1.a, demo.t1.b, demo.t1.c FROM demo.t1 WHERE demo.t1.a = 'abc' GROUP BY demo" +
+                ".t1.a HAVING count(demo.t1.b)>5;";
+        String[] columns1 = { "a", "b", "c" };
+        ColumnType[] columnTypes1 = {
+                new ColumnType(DataType.TEXT),
+                new ColumnType(DataType.INT),
+                new ColumnType(DataType.INT) };
+        String[] partitionKeys1 = { "a" };
+        String[] clusteringKeys1 = { };
+        TableMetadata t1 = MetadataManagerTestHelper.HELPER.defineTable(new ClusterName("c"), "demo", "t1", columns1, columnTypes1,
+                partitionKeys1, clusteringKeys1);
+
+        String[] expectedColumns = { "demo.t1.a", "demo.t1.b", "demo.t1.c" };
+        LogicalWorkflow workflow = null;
+        try {
+            workflow = getWorkflowNonParsed(inputText, "selectBasicWhereGroupHaving", t1);
+        } catch (PlanningException e) {
+            fail("LogicalWorkflow couldn't be calculated");
+        }
+        Project project1 = assertColumnsInProject(workflow, "demo.t1", expectedColumns);
+        assertGroupByInPath(project1, Operations.SELECT_GROUP_BY);
+        assertSelect(workflow);
+    }
+
 
     @Test
     public void selectBasicWhereWindow() {

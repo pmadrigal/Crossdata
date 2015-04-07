@@ -23,9 +23,11 @@ import static org.testng.Assert.fail;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.UUID;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
+import org.testng.internal.thread.ThreadTimeoutException;
 
 import com.stratio.crossdata.common.data.ResultSet;
 import com.stratio.crossdata.common.result.QueryResult;
@@ -33,15 +35,17 @@ import com.stratio.crossdata.sh.help.HelpStatement;
 
 public class ShellTest {
 
-    @Test
+    @Test(timeOut = 8000, expectedExceptions = ThreadTimeoutException.class)
     public void testMain() {
-        boolean ok=false;
-        Shell.main(new String[] { "--sync", "--script", "/path/file.xdql" });
-        ok=true;
-        assertTrue(ok, "testMain failed.");
+        try {
+            Shell.main(new String[] { "--sync", "--script", "/path/file.xdql" });
+        } catch (Exception ex){
+            assertTrue(true, "Impossible to happen");
+        }
+        fail("Connection with server should not have been established");
     }
 
-    @Test
+    @Test(timeOut = 4000)
     public void testFlush() {
         boolean ok = true;
         try {
@@ -53,7 +57,7 @@ public class ShellTest {
         assertEquals(true, ok, "testFlush failed.");
     }
 
-    @Test
+    @Test(timeOut = 4000)
     public void testSetPrompt() {
         boolean ok = true;
         try {
@@ -65,20 +69,18 @@ public class ShellTest {
         assertEquals(ok, true, "testSetPrompt failed.");
     }
 
-    @Test
+    @Test(timeOut = 4000, expectedExceptions = ThreadTimeoutException.class)
     public void testShellConnectWithoutServer() {
-        boolean ok = false;
-        boolean result = true;
         try {
             Shell crossdataSh = new Shell(false);
-            result = crossdataSh.connect();
+            boolean result = crossdataSh.connect("userTest","passwordTest");
         } catch (Exception e) {
-            fail("testShellConnectWithoutServer failed.");
+            assertTrue(true, "Impossible to happen");
         }
-        Assert.assertEquals(result, ok, "testShellConnectWithoutServer failed.");
+        fail("Connection with server should not have been established");
     }
 
-    @Test
+    @Test(timeOut = 4000)
     public void testRemoveResultsHandler() {
         boolean ok = true;
         try {
@@ -90,7 +92,7 @@ public class ShellTest {
         Assert.assertEquals(true, ok, "testRemoveResultsHandler failed.");
     }
 
-    @Test
+    @Test(timeOut = 4000)
     public void testShellDisConnectWithoutServer() {
         boolean ok = true;
         Shell crossdataSh = new Shell(false);
@@ -102,12 +104,12 @@ public class ShellTest {
         assertEquals(true, ok, "testShellDisConnectWithoutServer failed.");
     }
 
-    @Test
+    @Test(timeOut = 4000)
     public void testUpdatePrompt() {
         boolean ok = true;
         try {
             Shell shell = new Shell(false);
-            QueryResult result = QueryResult.createQueryResult(new ResultSet(), 0, true);
+            QueryResult result = QueryResult.createQueryResult(UUID.randomUUID().toString(), new ResultSet(), 0, true);
             result.setCurrentCatalog("catalogTest");
             shell.updatePrompt(result);
         } catch (Exception e) {
@@ -116,7 +118,7 @@ public class ShellTest {
         assertEquals(true, ok, "testUpdatePrompt failed.");
     }
 
-    @Test
+    @Test(timeOut = 4000)
     public void testPrintln() {
         boolean ok = true;
         Shell crossdataSh = new Shell(false);
@@ -128,7 +130,7 @@ public class ShellTest {
         assertEquals(ok, true, "An error happened in sh");
     }
 
-    @Test
+    @Test(timeOut = 4000)
     public void testExecuteScript() {
         boolean ok = true;
         Shell shell = new Shell(false);
@@ -141,7 +143,7 @@ public class ShellTest {
 
     }
 
-    @Test
+    @Test(timeOut = 4000)
     public void testParseHelp() {
         try {
             Shell shell = new Shell(false);
@@ -152,12 +154,6 @@ public class ShellTest {
             HelpStatement helpStatement = (HelpStatement) obj;
             String result = helpStatement.toString();
             String expected = "HELP CREATE";
-            /*
-            assertTrue(result.equalsIgnoreCase(expected),
-                    "Result:   " + result +
-                            System.lineSeparator() +
-                            "Expected: " + expected);
-            */
             assertEquals(result, expected,
                     "Result:   " + result +
                     System.lineSeparator() +
@@ -167,7 +163,7 @@ public class ShellTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 4000)
     public void testShowHelp() {
         try {
             Shell shell = new Shell(false);

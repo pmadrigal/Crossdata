@@ -27,12 +27,14 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import org.apache.log4j.Logger;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 
+import com.stratio.crossdata.common.data.CatalogName;
 import com.stratio.crossdata.common.data.ColumnName;
 import com.stratio.crossdata.common.exceptions.IgnoreQueryException;
 import com.stratio.crossdata.common.exceptions.ManifestException;
@@ -41,6 +43,7 @@ import com.stratio.crossdata.common.exceptions.ValidationException;
 import com.stratio.crossdata.common.executionplan.ExecutionWorkflow;
 import com.stratio.crossdata.common.executionplan.ResultType;
 import com.stratio.crossdata.common.logicalplan.Filter;
+import com.stratio.crossdata.common.logicalplan.GroupBy;
 import com.stratio.crossdata.common.logicalplan.Join;
 import com.stratio.crossdata.common.logicalplan.LogicalStep;
 import com.stratio.crossdata.common.logicalplan.LogicalWorkflow;
@@ -53,6 +56,8 @@ import com.stratio.crossdata.common.statements.structures.window.TimeUnit;
 import com.stratio.crossdata.common.statements.structures.window.WindowType;
 import com.stratio.crossdata.core.MetadataManagerTestHelper;
 import com.stratio.crossdata.core.grammar.ParsingTest;
+import com.stratio.crossdata.core.parser.Parser;
+import com.stratio.crossdata.core.query.BaseQuery;
 import com.stratio.crossdata.core.query.IParsedQuery;
 import com.stratio.crossdata.core.query.SelectParsedQuery;
 import com.stratio.crossdata.core.query.SelectPlannedQuery;
@@ -120,10 +125,6 @@ public class PlannerBaseTest {
             Assert.fail(e.getMessage());
         }
 
-        //for (TableMetadata tm : tableMetadataList) {
-        //    svq.addTableMetadata(tm);
-        //}
-
         SelectPlannedQuery plannedQuery = null;
         try {
             plannedQuery = planner.planQuery(svq);
@@ -186,6 +187,25 @@ public class PlannerBaseTest {
         return workflow;
     }
 
+    public LogicalWorkflow getWorkflowNonParsed(String statement, String methodName,
+            TableMetadata... tableMetadataList) throws PlanningException {
+        Parser parser = new Parser();
+        IParsedQuery stmt = null;
+        BaseQuery baseQuery = new BaseQuery(UUID.randomUUID().toString(), statement, new CatalogName(""),"sessionTest");
+        stmt = parser.parse(baseQuery);
+
+        SelectParsedQuery spq = SelectParsedQuery.class.cast(stmt);
+        SelectStatement ss = spq.getStatement();
+
+        SelectValidatedQueryWrapper svqw = new SelectValidatedQueryWrapper(ss, spq);
+        for (TableMetadata tm : tableMetadataList) {
+            svqw.addTableMetadata(tm);
+        }
+        LogicalWorkflow workflow = planner.buildWorkflow(svqw);
+        LOG.info(workflow.toString());
+        return workflow;
+    }
+
     public void assertNumberInitialSteps(LogicalWorkflow workflow, int expected) {
         assertNotNull(workflow, "Expecting workflow");
         assertEquals(workflow.getInitialSteps().size(), expected, "Expecting a single initial step.");
@@ -215,8 +235,23 @@ public class PlannerBaseTest {
         boolean found = false;
         while (step != null && !found) {
             if (Filter.class.isInstance(step)) {
-                LOG.info("-> " + step.getOperation());
-                found = operation.equals(step.getOperation());
+                LOG.info("-> " + step.getOperations());
+                found = step.getOperations().contains(operation);
+                //found = operation.equals(step.getOperation());
+            }
+            step = step.getNextStep();
+        }
+        assertTrue(found, "Filter " + operation + " not found.");
+    }
+
+    public void assertGroupByInPath(Project initialStep, Operations operation) {
+        LogicalStep step = initialStep;
+        boolean found = false;
+        while (step != null && !found) {
+            if (GroupBy.class.isInstance(step)) {
+                LOG.info("-> " + step.getOperations());
+                found = step.getOperations().contains(operation);
+                //found = operation.equals(step.getOperation());
             }
             step = step.getNextStep();
         }

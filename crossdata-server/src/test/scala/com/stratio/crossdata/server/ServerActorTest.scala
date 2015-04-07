@@ -29,7 +29,7 @@ import akka.testkit.ImplicitSender
 import com.stratio.crossdata.common.data.{CatalogName, ClusterName, ColumnName, ConnectorName, DataStoreName, FirstLevelName, IndexName, Status, TableName}
 import com.stratio.crossdata.common.executionplan.{ExecutionType, MetadataWorkflow, QueryWorkflow, ResultType, StorageWorkflow}
 import com.stratio.crossdata.common.logicalplan.{LogicalStep, LogicalWorkflow, Project, Select}
-import com.stratio.crossdata.common.manifest.PropertyType
+import com.stratio.crossdata.common.manifest.{FunctionType, PropertyType}
 import com.stratio.crossdata.common.metadata._
 import com.stratio.crossdata.common.metadata.structures.TableType
 import com.stratio.crossdata.common.statements.structures.Selector
@@ -52,6 +52,7 @@ import org.scalatest.{BeforeAndAfterAll, FunSuiteLike, Suite}
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
+import java.util.Collections
 
 trait ServerActorTest extends ActorReceiveUtils with FunSuiteLike with MockFactory with ServerConfig with
 ImplicitSender with BeforeAndAfterAll{
@@ -104,7 +105,8 @@ ImplicitSender with BeforeAndAfterAll{
   val selectStatement: SelectStatement = new SelectStatement(new TableName(catalogName,tableName))
   val selectParsedQuery = new SelectParsedQuery(new BaseQuery(incQueryId(), "SELECT FROM " + catalogName + "." +
     tableName,
-    new CatalogName(catalogName)), selectStatement)
+    new CatalogName(catalogName),
+    "sessionTest"), selectStatement)
   //val selectValidatedQuery = new SelectValidatedQuery(selectParsedQuery)
   val selectValidatedQueryWrapper = new SelectValidatedQueryWrapper(selectStatement,selectParsedQuery)
 
@@ -113,14 +115,14 @@ ImplicitSender with BeforeAndAfterAll{
   //make the implementation of storageStatement.
   val storageParsedQuery = new StorageParsedQuery(new BaseQuery(incQueryId(), "insert (uno," +
     "dos) into " + tableName + ";",
-    new CatalogName(catalogName)), storageStatement)
+    new CatalogName(catalogName),"sessionTest"), storageStatement)
   val storageValidatedQuery = new StorageValidatedQuery(storageParsedQuery)
   val storagePlannedQuery = new StoragePlannedQuery(storageValidatedQuery, new StorageWorkflow(queryId + queryIdIncrement,
     StringUtils.getAkkaActorRefUri(connectorActor, false), ExecutionType.INSERT, ResultType.RESULTS))
 
   val metadataStatement0: MetadataStatement = new CreateCatalogStatement(
     new CatalogName(catalogName),true,"")
-  val metadataParsedQuery0 = new MetadataParsedQuery(new BaseQuery(incQueryId(), "", new CatalogName(catalogName)),
+  val metadataParsedQuery0 = new MetadataParsedQuery(new BaseQuery(incQueryId(), "", new CatalogName(catalogName),"sessionTest"),
     metadataStatement0)
   val metadataValidatedQuery0: MetadataValidatedQuery = new MetadataValidatedQuery(metadataParsedQuery0)
   val metadataWorkflow0=new MetadataWorkflow(queryId + queryIdIncrement,  null, ExecutionType.CREATE_CATALOG, ResultType.RESULTS)
@@ -144,7 +146,8 @@ ImplicitSender with BeforeAndAfterAll{
     isExternal
   )
   val metadataParsedQuery1 = new MetadataParsedQuery(new BaseQuery(incQueryId(), "create table " + tableName1 + ";",
-    new CatalogName(catalogName)),
+    new CatalogName(catalogName),
+    "sessionTest"),
     metadataStatement1)
   val metadataValidatedQuery1: MetadataValidatedQuery = new MetadataValidatedQuery(metadataParsedQuery1)
   val metadataWorkflow1=new MetadataWorkflow(queryId + queryIdIncrement,  StringUtils.getAkkaActorRefUri(connectorActor, false),
@@ -220,10 +223,13 @@ ImplicitSender with BeforeAndAfterAll{
 
 
     //Create connector
-    val myConnector=metadataManager.createTestConnector(connectorName.name,new DataStoreName(myDatastore.getName()),
+    val myConnector=metadataManager.createTestConnector(
+      connectorName.name,
+      new DataStoreName(myDatastore.getName()),
       clusterwithPriorities,
       operations,
-      StringUtils.getAkkaActorRefUri(connectorActor, false))
+      StringUtils.getAkkaActorRefUri(connectorActor, false),
+      new util.ArrayList[FunctionType]())
 
     //create catalog
     metadataManager.createTestCatalog(catalogName)
@@ -267,7 +273,10 @@ ImplicitSender with BeforeAndAfterAll{
    */
   def getProject (tableName: String, columns: ColumnName *): Project = {
     val operation: Operations = Operations.PROJECT
-    val project: Project = new Project (operation, new TableName (catalogName, tableName), new ClusterName (myClusterName) )
+    val project: Project = new Project (
+      Collections.singleton(operation),
+      new TableName(catalogName, tableName),
+      new ClusterName(myClusterName) )
     for (cn <- columns) {
       project.addColumn (cn)
     }

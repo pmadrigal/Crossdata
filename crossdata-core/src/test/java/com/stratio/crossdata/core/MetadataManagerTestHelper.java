@@ -131,7 +131,13 @@ public enum MetadataManagerTestHelper {
     public void closeHelper(){
         if(initialized){
             try {
+                List<ConnectorMetadata> connectors = MetadataManager.MANAGER.getConnectors();
                 MetadataManager.MANAGER.clear();
+                for(ConnectorMetadata connector: connectors){
+                    if(connector.getName().equals(new ConnectorName("InMemoryConnector"))){
+                        MetadataManager.MANAGER.createConnector(connector);
+                    }
+                }
                 ExecutionManager.MANAGER.clear();
             } catch (Exception e) {
                 System.err.println(e.getMessage());
@@ -168,7 +174,8 @@ public enum MetadataManagerTestHelper {
                 datastoreName,
                 clusterWithPriorities,
                 options,
-                "actorRed1");
+                "actorRef1",
+                new ArrayList<FunctionType>());
         createTestCatalog("testCatalog");
         IndexName indexName = new IndexName(new ColumnName("catalog1", "table1", "defaultTest"));
         Set<IndexMetadata> indexes = new HashSet<>();
@@ -272,7 +279,7 @@ public enum MetadataManagerTestHelper {
         } catch (ManifestException e) {
             fail(e.getMessage());
         }
-        connectorMetadata.setActorRef(actorRef);
+        connectorMetadata.addActorRef(actorRef);
         MetadataManager.MANAGER.createConnector(connectorMetadata, false);
         return connectorName;
     }
@@ -295,7 +302,7 @@ public enum MetadataManagerTestHelper {
                 clusterProperties, new HashMap<ClusterName,Integer>(),new HashSet<PropertyType>(), new HashSet<PropertyType>(),
                 new HashSet<Operations>(),null);
         connectorMetadata.setClusterRefs(clusterList);
-        connectorMetadata.setActorRef(actorRef);
+        connectorMetadata.addActorRef(actorRef);
         MetadataManager.MANAGER.createConnector(connectorMetadata);
         return connectorName;
     }
@@ -307,15 +314,18 @@ public enum MetadataManagerTestHelper {
      * @param dataStoreName The dataStore associated with this connector.
      * @return A {@link com.stratio.crossdata.common.data.ConnectorName}.
      */
-    public ConnectorMetadata createTestConnector(String name, DataStoreName dataStoreName, Map<ClusterName, Integer> clusterWithPriorities,
+    public ConnectorMetadata createTestConnector(
+            String name,
+            DataStoreName dataStoreName,
+            Map<ClusterName, Integer> clusterWithPriorities,
             Set<Operations> options,
-            String actorRef) throws ManifestException {
+            String actorRef,
+            List<FunctionType> functionsList) throws ManifestException {
         final String version = "0.2.0";
         ConnectorName connectorName = new ConnectorName(name);
         Set<DataStoreName> dataStoreRefs = Collections.singleton(dataStoreName);
         Map<ClusterName, Map<Selector, Selector>> clusterProperties = new HashMap<>();
         ConnectorFunctionsType functions = new ConnectorFunctionsType();
-        List<FunctionType> functionsList = new ArrayList<>();
         FunctionType functionType = new FunctionType();
         functionType.setFunctionName("concat");
         functionType.setSignature("concat(Tuple[Text, Text]):Tuple[Text]");
@@ -325,7 +335,7 @@ public enum MetadataManagerTestHelper {
         ConnectorMetadata connectorMetadata = new ConnectorMetadata(connectorName, version, dataStoreRefs,
                 clusterProperties, clusterWithPriorities, new HashSet<PropertyType>(), new HashSet<PropertyType>(), options, functions);
         connectorMetadata.setClusterRefs(new HashSet<>(clusterWithPriorities.keySet()));
-        connectorMetadata.setActorRef(actorRef);
+        connectorMetadata.addActorRef(actorRef);
         connectorMetadata.setPageSize(5);
         MetadataManager.MANAGER.createConnector(connectorMetadata, false);
         return connectorMetadata;
