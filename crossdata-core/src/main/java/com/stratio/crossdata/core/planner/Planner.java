@@ -201,7 +201,7 @@ public class Planner {
         logCandidateConnectors(candidatesConnectors);
 
         List<ExecutionPath> executionPaths = new ArrayList<>();
-        Map<UnionStep, Set<ExecutionPath>> unionSteps = new HashMap<>();
+        Map<UnionStep, Set<ExecutionPath>> unionSteps = new LinkedHashMap<>();
         //Iterate through the initial steps and build valid execution paths
         for (LogicalStep initialStep : workflow.getInitialSteps()) {
             TableName targetTable = ((Project) initialStep).getTableName();
@@ -275,8 +275,8 @@ public class Planner {
 
         List<ConnectorMetadata> toRemove = new ArrayList<>();
         List<ConnectorMetadata> mergeConnectors = new ArrayList<>();
-        Map<PartialResults, ExecutionWorkflow> triggerResults = new HashMap<>();
-        Map<UnionStep, ExecutionWorkflow> triggerWorkflow = new HashMap<>();
+        Map<PartialResults, ExecutionWorkflow> triggerResults = new LinkedHashMap<>();
+        Map<UnionStep, ExecutionWorkflow> triggerWorkflow = new LinkedHashMap<>();
         List<ExecutionWorkflow> workflows = new ArrayList<>();
         UnionStep nextUnion = null;
         QueryWorkflow first = null;
@@ -792,7 +792,7 @@ public class Planner {
                 //Generate a select for next step of union step.
                 if ((unionStep.getNextStep() == null) || UnionStep.class.isInstance(unionStep.getNextStep())) {
                     List<Selector> selectorJoinList = new ArrayList<>();
-                    Map<String, TableMetadata> joinTableMetadataMap = new HashMap<>();
+                    Map<String, TableMetadata> joinTableMetadataMap = new LinkedHashMap<>();
 
                     List<LogicalStep> projects = unionStep.getPreviousSteps();
                     for (LogicalStep ls : projects) {
@@ -1958,12 +1958,14 @@ public class Planner {
                     "crossJoin");
 
             StringBuilder sb = new StringBuilder();
-            Relation firstRelation = (Relation) queryJoin.getRelations().get(0);
+
+            Relation firstRelation = queryJoin.getOrderedRelations().get(0);
             sb.append(firstRelation.getLeftTerm().getTableName().getQualifiedName())
                     .append("$").append(firstRelation.getRightTerm().getTableName()
                     .getQualifiedName());
 
             //Attach to input tables path
+
             LogicalStep t1 = stepMap.get(firstRelation.getLeftTerm().getSelectorTablesAsString());
             LogicalStep t2 = stepMap.get(firstRelation.getRightTerm().getSelectorTablesAsString());
             List<AbstractRelation> relations;

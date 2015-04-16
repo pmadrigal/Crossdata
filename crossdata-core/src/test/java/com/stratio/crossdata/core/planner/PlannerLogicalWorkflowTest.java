@@ -233,6 +233,8 @@ public class PlannerLogicalWorkflowTest extends PlannerBaseTest {
         assertSelect(workflow);
     }
 
+    
+
     @Test
     public void selectMultipleJoinsMultipleColumns() {
         //TODO update on clause when fullyqualifed names are supported in the JOIN.
