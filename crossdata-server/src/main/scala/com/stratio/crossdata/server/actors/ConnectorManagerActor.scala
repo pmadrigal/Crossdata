@@ -177,11 +177,19 @@ class ConnectorManagerActor(cluster:Cluster) extends Actor with ActorLogging {
       logger.info("Member is Removed: " + member.member.address)
       logger.info("Member info: " + member.toString)
       val actorRefUri = StringUtils.getAkkaActorRefUri(member.member.address, false)+"/user/ConnectorActor/"
+      logger.debug("ActorRef: " + actorRefUri)
       if(ExecutionManager.MANAGER.exists(actorRefUri)){
         val connectorName = ExecutionManager.MANAGER.getValue(actorRefUri)
         MetadataManager.MANAGER.removeActorRefFromConnector(connectorName.asInstanceOf[ConnectorName], actorRefUri)
         MetadataManager.MANAGER.setNodeStatus(new NodeName(member.member.address.toString), Status.OFFLINE)
         ExecutionManager.MANAGER.deleteEntry(actorRefUri)
+      } else {
+        logger.warn(actorRefUri + " not found in the Execution Manager")
+        if(logger.isDebugEnabled){
+          for(key <- ExecutionManager.MANAGER.getKeys){
+            logger.debug("Execution Manager key:" + key)
+          }
+        }
       }
       // example of member.member.address = akka.tcp://CrossdataServerCluster@127.0.0.1:13421
       val lwmkey=member.member.address.toString.split("@")(1).split(":")(0)

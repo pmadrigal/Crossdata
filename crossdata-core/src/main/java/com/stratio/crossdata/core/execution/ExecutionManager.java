@@ -20,6 +20,7 @@ package com.stratio.crossdata.core.execution;
 
 import java.io.Serializable;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.locks.Lock;
 
 import javax.transaction.HeuristicMixedException;
@@ -229,6 +230,10 @@ public enum ExecutionManager {
         shouldBeInit();
         shouldExist(key);
         return executionData.get(key);
+    }
+
+    public Set<String> getKeys(){
+        return executionData.keySet();
     }
 
 }
