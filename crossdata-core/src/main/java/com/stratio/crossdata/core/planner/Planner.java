@@ -1977,7 +1977,7 @@ public class Planner {
                     Relation r = (Relation) ar;
 
                     if(Filter.class.isInstance(t1)){
-                        innerJoin.addSourceIdentifier(((Filter)t1).getRelation().getLeftTerm().getTableName().getQualifiedName());
+                        innerJoin.addSourceIdentifier(((Filter)t1).getRelation().getLeftTerm().getSelectorTablesAsString());
                     }else if (Project.class.isInstance(t1)){
                         innerJoin.addSourceIdentifier(((Project)t1).getTableName().getQualifiedName());
                     }else{
@@ -1985,8 +1985,7 @@ public class Planner {
                     }
 
                     if(Filter.class.isInstance(t2)){
-                        innerJoin.addSourceIdentifier(((Filter)t2).getRelation().getLeftTerm().getTableName()
-                                .getQualifiedName());
+                        innerJoin.addSourceIdentifier(((Filter)t2).getRelation().getLeftTerm().getSelectorTablesAsString());
                     }else if (Project.class.isInstance(t2)){
                         innerJoin.addSourceIdentifier(((Project)t2).getTableName().getQualifiedName());
                     }else{
@@ -2016,7 +2015,7 @@ public class Planner {
                 for (AbstractRelation ar: relations) {
                     Relation r = (Relation) ar;
                     if(Filter.class.isInstance(t1)){
-                        crossJoin.addSourceIdentifier(((Filter)t1).getRelation().getLeftTerm().getTableName().getQualifiedName());
+                        crossJoin.addSourceIdentifier(((Filter)t1).getRelation().getLeftTerm().getSelectorTablesAsString());
                     }else if (Project.class.isInstance(t1)){
                         crossJoin.addSourceIdentifier(((Project)t1).getTableName().getQualifiedName());
                     }else{
@@ -2024,8 +2023,7 @@ public class Planner {
                     }
 
                     if(Filter.class.isInstance(t2)){
-                        crossJoin.addSourceIdentifier(((Filter)t2).getRelation().getLeftTerm().getTableName()
-                                .getQualifiedName());
+                        crossJoin.addSourceIdentifier(((Filter)t2).getRelation().getLeftTerm().getSelectorTablesAsString());
                     }else if (Project.class.isInstance(t2)){
                         crossJoin.addSourceIdentifier(((Project)t2).getTableName().getQualifiedName());
                     }else{
@@ -2054,7 +2052,7 @@ public class Planner {
                 for (AbstractRelation ar: relations) {
                     Relation r = (Relation) ar;
                     if(Filter.class.isInstance(t1)){
-                        leftJoin.addSourceIdentifier(((Filter)t1).getRelation().getLeftTerm().getTableName().getQualifiedName());
+                        leftJoin.addSourceIdentifier(((Filter)t1).getRelation().getLeftTerm().getSelectorTablesAsString());
                     }else if (Project.class.isInstance(t1)){
                         leftJoin.addSourceIdentifier(((Project)t1).getTableName().getQualifiedName());
                     }else{
@@ -2062,8 +2060,7 @@ public class Planner {
                     }
 
                     if(Filter.class.isInstance(t2)){
-                        leftJoin.addSourceIdentifier(((Filter)t2).getRelation().getLeftTerm().getTableName()
-                                .getQualifiedName());
+                        leftJoin.addSourceIdentifier(((Filter)t2).getRelation().getLeftTerm().getSelectorTablesAsString());
                     }else if (Project.class.isInstance(t2)){
                         leftJoin.addSourceIdentifier(((Project)t2).getTableName().getQualifiedName());
                     }else{
@@ -2092,7 +2089,7 @@ public class Planner {
                 for (AbstractRelation ar: relations) {
                     Relation r = (Relation) ar;
                     if(Filter.class.isInstance(t1)){
-                        fullOuterJoin.addSourceIdentifier(((Filter)t1).getRelation().getLeftTerm().getTableName().getQualifiedName());
+                        fullOuterJoin.addSourceIdentifier(((Filter)t1).getRelation().getLeftTerm().getSelectorTablesAsString());
                     }else if (Project.class.isInstance(t1)){
                         fullOuterJoin.addSourceIdentifier(((Project)t1).getTableName().getQualifiedName());
                     }else{
@@ -2100,8 +2097,7 @@ public class Planner {
                     }
 
                     if(Filter.class.isInstance(t2)){
-                        fullOuterJoin.addSourceIdentifier(((Filter)t2).getRelation().getLeftTerm().getTableName()
-                                .getQualifiedName());
+                        fullOuterJoin.addSourceIdentifier(((Filter)t2).getRelation().getLeftTerm().getSelectorTablesAsString());
                     }else if (Project.class.isInstance(t2)){
                         fullOuterJoin.addSourceIdentifier(((Project)t2).getTableName().getQualifiedName());
                     }else{
@@ -2130,7 +2126,7 @@ public class Planner {
                 for (AbstractRelation ar: relations) {
                     Relation r = (Relation) ar;
                     if(Filter.class.isInstance(t1)){
-                        rightJoin.addSourceIdentifier(((Filter)t1).getRelation().getLeftTerm().getTableName().getQualifiedName());
+                        rightJoin.addSourceIdentifier(((Filter)t1).getRelation().getLeftTerm().getSelectorTablesAsString());
                     }else if (Project.class.isInstance(t1)){
                         rightJoin.addSourceIdentifier(((Project)t1).getTableName().getQualifiedName());
                     }else{
@@ -2138,8 +2134,7 @@ public class Planner {
                     }
 
                     if(Filter.class.isInstance(t2)){
-                        rightJoin.addSourceIdentifier(((Filter)t2).getRelation().getLeftTerm().getTableName()
-                                .getQualifiedName());
+                        rightJoin.addSourceIdentifier(((Filter)t2).getRelation().getLeftTerm().getSelectorTablesAsString());
                     }else if (Project.class.isInstance(t2)){
                         rightJoin.addSourceIdentifier(((Project)t2).getTableName().getQualifiedName());
                     }else{
