@@ -575,7 +575,6 @@ public class APIManager {
                 MetadataManager.MANAGER.removeCatalogFromClusters(catalogMetadata.getName());
             }
             MetadataManager.MANAGER.clearCatalogs();
-            ExecutionManager.MANAGER.clear();
         } catch (SystemException | NotSupportedException | HeuristicRollbackException | HeuristicMixedException | RollbackException
                 e) {
             result = CommandResult.createErrorResult(e);
