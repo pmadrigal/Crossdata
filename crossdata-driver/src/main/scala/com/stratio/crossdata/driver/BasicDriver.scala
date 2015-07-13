@@ -31,7 +31,7 @@ import com.stratio.crossdata.common.result._
 import com.stratio.crossdata.communication.Disconnect
 import com.stratio.crossdata.driver.actor.ProxyActor
 import com.stratio.crossdata.driver.config.{BasicDriverConfig, DriverConfig, DriverSectionConfig, ServerSectionConfig}
-import com.stratio.crossdata.driver.result.SyncDriverResultHandler
+import com.stratio.crossdata.driver.result.{PaginationSyncDriverResultHandler, SyncDriverResultHandler}
 import com.stratio.crossdata.driver.utils.{ManifestUtils, RetryPolitics}
 import org.apache.log4j.Logger
 
@@ -233,6 +233,36 @@ class BasicDriver(basicDriverConfig: BasicDriverConfig) {
     }
     val queryId = UUID.randomUUID()
     val callback = new SyncDriverResultHandler
+    queries.put(queryId.toString, callback)
+    sendQuery(new Query(queryId.toString, currentCatalog, query, userId, sessionId))
+    val r = callback.waitForResult()
+    queries.remove(queryId.toString)
+    r
+  }
+
+  /**
+   * Launch query in Crossdata Server
+   * @param query Launched query
+   * @param buildUpRows Whether a query launched against a connector using pagination collects the whole result or solely returns the first one
+   * @return QueryResult
+   */
+  @throws(classOf[ConnectionException])
+  @throws(classOf[ParsingException])
+  @throws(classOf[ValidationException])
+  @throws(classOf[ExecutionException])
+  @throws(classOf[UnsupportedException])
+  def executeQuery(query: String, buildUpRows: Boolean, sessionId: String): Result = {
+    if (userId.isEmpty) {
+      throw new ConnectionException("You must connect to cluster")
+    }
+
+    val queryId = UUID.randomUUID()
+    val callback =
+      if (buildUpRows)
+        new PaginationSyncDriverResultHandler
+      else
+        new SyncDriverResultHandler
+
     queries.put(queryId.toString, callback)
     sendQuery(new Query(queryId.toString, currentCatalog, query, userId, sessionId))
     val r = callback.waitForResult()

@@ -37,6 +37,7 @@ import com.stratio.crossdata.common.result.ConnectResult;
 import com.stratio.crossdata.common.result.ErrorResult;
 import com.stratio.crossdata.common.result.InProgressResult;
 import com.stratio.crossdata.common.result.MetadataResult;
+import com.stratio.crossdata.common.result.QueryResult;
 import com.stratio.crossdata.common.result.Result;
 import com.stratio.crossdata.common.result.StorageResult;
 import com.stratio.crossdata.connectors.ConnectorApp;
@@ -369,6 +370,22 @@ public class BasicDriverIT {
             }
         }
         driver.removeResultHandler(result.getQueryId());
+    }
+
+    @Test(timeOut = 8000, dependsOnMethods = { "testInsert7" })
+    public void testSyncPaginatedSelect() throws Exception {
+        Thread.sleep(500);
+        Result result = driver.executeQuery("SELECT * FROM tableTest;", true, "testSession");
+
+        if (result instanceof ErrorResult) {
+            LOG.error(((ErrorResult) result).getErrorMessage());
+        }
+        assertFalse(result.hasError(), "Server returned an error");
+        assertTrue(result instanceof QueryResult, "Driver should return a query result");
+        QueryResult queryResult = (QueryResult) result;
+        assertTrue(queryResult.isLastResultSet(), "Result should be the last result");
+        assertEquals(7, queryResult.getResultSet().size(), "The result should contain ten result");
+
     }
 
     @AfterClass
