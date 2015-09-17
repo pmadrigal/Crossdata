@@ -60,7 +60,7 @@ sed -i "s/^\(crossdata-driver.config.cluster.hosts =\).*$/\1 \[\"$ipaddress\:134
 #######################################
 #Cassandra
 echo "Installing Cassandra connector..."
-rpm --quiet -q stratio-connector-cassandra-0.4.0 || yum -y -q --nogpgcheck install stratio-connector-cassandra
+rpm --quiet -q stratio-connector-cassandra-0.4.0 || yum -y -q --nogpgcheck install stratio-connector-cassandra.0.4.0
 
 #config
 echo "Configuring Cassandra connector..."
