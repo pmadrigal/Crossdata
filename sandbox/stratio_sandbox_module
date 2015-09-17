@@ -121,3 +121,7 @@ EOF
 wget -P /etc/sds/crossdata https://raw.githubusercontent.com/jjlopezm/crossdata-client-example/patch-3/src/main/resources/README.txt --no-check-certificate
 
 echo "Follow instructions in /etc/sds/crossdata/README.txt"
+
+sudo su
+mkdir -p /user/hive/warehouse
+chown -R stratio:stratio /user
