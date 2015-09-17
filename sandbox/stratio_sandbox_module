@@ -15,6 +15,11 @@ ipaddress=$(ip -4 addr show dev eth0 | grep inet | sed 's/^ *//g' | cut -d' ' -f
 echo "Installing Cassandra..."
 rpm --quiet -q stratio-cassandra || yum -y -q --nogpgcheck install stratio-cassandra
 
+#######################################
+## Mongo
+#######################################
+rpm --quiet -q mongodb-org || yum -y -q --nogpgcheck install mongodb-org
+
 echo "Configuring Cassandra..."
 ##Config Cassandra:
 sed -i "s/^\(num_tokens:\)/#\1/" /etc/sds/cassandra/cassandra.yaml
@@ -60,6 +65,10 @@ rpm --quiet -q stratio-connector-cassandra || yum -y -q --nogpgcheck install str
 echo "Configuring Cassandra connector..."
 sed -i "s/^\(crossdata-connector.akka.cluster.seed-nodes =\).*$/\1 \[\"akka.tcp\:\/\/CrossdataServerCluster\@$ipaddress\:13420\"\]/" /etc/sds/connectors/cassandra/connector-application.conf
 sed -i "s/^\(crossdata-connector.akka.remote.netty.tcp.hostname =\).*$/\1 \"$ipaddress\"/" /etc/sds/connectors/cassandra/connector-application.conf
+
+#Mongo
+echo "Installing Mongo connector..."
+rpm --quiet -q stratio-connector-mongodb || yum -y -q --nogpgcheck install stratio-connector-mongodb
 
 
 #SPARKSQL Connector
