@@ -74,12 +74,12 @@ rpm --quiet -q stratio-connector-mongodb || yum -y -q --nogpgcheck install strat
 #config
 echo "Configuring Mongo connector..."
 sed -i "s/^\(crossdata-connector.akka.cluster.seed-nodes =\).*$/\1 \[\"akka.tcp\:\/\/CrossdataServerCluster\@$ipaddress\:13420\"\]/" /etc/sds/connectors/mongodb/connector-application.conf
-sed -i "s/^\(crossdata-connector.akka.remote.netty.tcp.hostname =\).*$/\1 \"$ipaddress\"/"/etc/sds/connectors/mongodb/connector-application.conf
+sed -i "s/^\(crossdata-connector.akka.remote.netty.tcp.hostname =\).*$/\1 \"$ipaddress\"/" /etc/sds/connectors/mongodb/connector-application.conf
 
 
 #SPARKSQL Connector
 echo "Installing SparkSQL connector..."
-rpm --quiet -q stratio-connector-sparksql || yum -y -q --nogpgcheck install stratio-connector-sparksql
+rpm --quiet -q stratio-connector-sparksql || yum -y -q --nogpgcheck install stratio-connector-sparksql-0.3.1
 
 #config
 echo "Configuring SparkSQL connector..."
@@ -104,6 +104,8 @@ service cassandra start
 service mongodb start
 
 mv /etc/sds/connectors/sparksql/hive-site.xml /etc/sds/connectors/sparksql/hive-site.xml_bak
+mv /etc/sds/connectors/sparksql/core-site.xml /etc/sds/connectors/sparksql/core-site.xml_bak
+mv /etc/sds/connectors/sparksql/hdfs-site.xml /etc/sds/connectors/sparksql/hdfs-site.xml_bak
 
 cat >>/etc/rc.local <<EOF
 if [ ! -f $LOCK_FILE ]; then
