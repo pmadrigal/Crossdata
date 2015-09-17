@@ -71,6 +71,11 @@ sed -i "s/^\(crossdata-connector.akka.remote.netty.tcp.hostname =\).*$/\1 \"$ipa
 echo "Installing Mongo connector..."
 rpm --quiet -q stratio-connector-mongodb || yum -y -q --nogpgcheck install stratio-connector-mongodb
 
+#config
+echo "Configuring Mongo connector..."
+sed -i "s/^\(crossdata-connector.akka.cluster.seed-nodes =\).*$/\1 \[\"akka.tcp\:\/\/CrossdataServerCluster\@$ipaddress\:13420\"\]/" /etc/sds/connectors/mongodb/connector-application.conf
+sed -i "s/^\(crossdata-connector.akka.remote.netty.tcp.hostname =\).*$/\1 \"$ipaddress\"/"/etc/sds/connectors/mongodb/connector-application.conf
+
 
 #SPARKSQL Connector
 echo "Installing SparkSQL connector..."
@@ -85,14 +90,18 @@ sed -i "s/^\(crossdata-connector.akka.remote.netty.tcp.hostname =\).*$/\1 \"$ipa
 
 chkconfig --add crossdata
 chkconfig --add cassandra
+chkconfig --add mongodb
 chkconfig --add connector_cassandra
+chkconfig --add connector_mongodb
 chkconfig --add connector_sparksql
 chkconfig crossdata off
 chkconfig cassandra on
 chkconfig connector_cassandra off
+chkconfig connector_mongodb off
 chkconfig connector_sparksql off
 echo "Starting services..."
 service cassandra start
+service mongodb start
 
 mv /etc/sds/connectors/sparksql/hive-site.xml /etc/sds/connectors/sparksql/hive-site.xml_bak
 
