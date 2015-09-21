@@ -81,15 +81,14 @@
     <modules>
         <module>crossdata-ng</module>
         <module>doc</module>
-        <module>crossdata-server</module>
         <module>crossdata-common</module>
         <module>crossdata-driver</module>
+        <module>crossdata-server</module>
     </modules>
 
     <properties>
         <scala.binary.version>2.10</scala.binary.version>
         <scala.version>2.10.4</scala.version>
-        <scalatest.version>2.2.2</scalatest.version>
         <spark.version>1.4.1</spark.version>
         <scalatest.version>2.2.5</scalatest.version>
         <mapdb.version>1.0.8</mapdb.version>
@@ -104,11 +103,6 @@
 
     <dependencyManagement>
         <dependencies>
-            <dependency>
-                <groupId>org.scala-lang</groupId>
-                <artifactId>scala-library</artifactId>
-                <version>${scala.version}</version>
-            </dependency>
             <dependency>
                 <groupId>org.apache.spark</groupId>
                 <artifactId>spark-core_${scala.binary.version}</artifactId>
@@ -131,6 +125,11 @@
             </dependency>
             <dependency>
                 <groupId>com.stratio.crossdata</groupId>
+                <artifactId>crossdata-mongodb</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.stratio.crossdata</groupId>
                 <artifactId>crossdata-common</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -138,6 +137,11 @@
     </dependencyManagement>
 
     <dependencies>
+        <dependency>
+            <groupId>org.scala-lang</groupId>
+            <artifactId>scala-library</artifactId>
+            <version>${scala.version}</version>
+        </dependency>
         <!--TEST-->
         <dependency>
             <groupId>junit</groupId>
@@ -213,6 +217,7 @@
             </plugins>
         </pluginManagement>
 
+
         <plugins>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -233,10 +238,6 @@
                     <includes>
                         <include>**/*Spec.*</include>
                     </includes>
-                    <argLine>
-                        ${jacoco-UT-argline}
-                        -XX:MaxPermSize=256m
-                    </argLine>
                 </configuration>
             </plugin>
             <plugin>
@@ -244,24 +245,24 @@
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <executions>
                     <execution>
-                        <id>integration-test</id>
-                        <goals>
-                            <goal>integration-test</goal>
-                        </goals>
                         <configuration>
-                            <useSystemClassLoader>false</useSystemClassLoader>
-                            <useManifestOnlyJar>true</useManifestOnlyJar>
                             <includes>
                                 <include>**/*IT.*</include>
                             </includes>
-                            <argLine>
-                                ${jacoco-IT-argline}
-                                -Xmx1024m
-                                -XX:MaxPermSize=256m
-                            </argLine>
                         </configuration>
                     </execution>
                 </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>2.9</version>
+                <configuration>
+                    <minmemory>64m</minmemory>
+                    <maxmemory>1g</maxmemory>
+                    <outputDirectory>${project.build.directory}</outputDirectory>
+                    <detectLinks>true</detectLinks>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.scalastyle</groupId>
@@ -287,90 +288,63 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>2.9</version>
-                <configuration>
-                    <minmemory>64m</minmemory>
-                    <maxmemory>1g</maxmemory>
-                    <outputDirectory>${project.build.directory}</outputDirectory>
-                    <detectLinks>true</detectLinks>
-                </configuration>
-            </plugin>
         </plugins>
     </build>
 
     <profiles>
         <profile>
-            <id>crossdata-core</id>
-            <activation>
-                <property>
-                    <name>!crossdata-all</name>
-                </property>
-            </activation>
-        </profile>
-        <profile>
             <id>crossdata-all</id>
-            <activation>
-                <property>
-                    <name>crossdata-all</name>
-                </property>
-            </activation>
-
             <modules>
                 <module>crossdata-hive</module>
                 <module>crossdata-cassandra</module>
-                <module>crossdata-examples</module>
-                <module>crossdata-acceptance-test</module>
+                <module>crossdata-mongodb</module>
             </modules>
         </profile>
+
         <profile>
             <id>crossdata-hive</id>
-            <activation>
-                <property>
-                    <name>crossdata-hive</name>
-                </property>
-            </activation>
             <modules>
                 <module>crossdata-hive</module>
             </modules>
         </profile>
         <profile>
             <id>crossdata-cassandra</id>
-            <activation>
-                <property>
-                    <name>crossdata-cassandra</name>
-                </property>
-            </activation>
             <modules>
                 <module>crossdata-cassandra</module>
-                <module>crossdata-examples</module>
             </modules>
         </profile>
+        <profile>
+            <id>crossdata-mongodb</id>
+            <modules>
+                <module>crossdata-mongodb</module>
+            </modules>
+        </profile>
+        <profile>
+            <id>scala-2.10</id>
+            <activation>
+                <property>
+                    <name>!scala-2.11</name>
+                </property>
+            </activation>
+            <properties>
+                <scala.version>2.10.4</scala.version>
+                <scala.binary.version>2.10</scala.binary.version>
+            </properties>
+        </profile>
 
-        <!--        <profile>
-                    <id>scala-2.10</id>
-                    <activation>
-                        <property><name>!scala-2.11</name></property>
-                    </activation>
-                    <properties>
-                        <scala.version>2.10.4</scala.version>
-                        <scala.binary.version>2.10</scala.binary.version>
-                    </properties>
-                </profile>
+        <profile>
+            <id>scala-2.11</id>
+            <activation>
+                <property>
+                    <name>scala-2.11</name>
+                </property>
+            </activation>
+            <properties>
+                <scala.version>2.11.7</scala.version>
+                <scala.binary.version>2.11</scala.binary.version>
+            </properties>
+        </profile>
 
-                <profile>
-                    <id>scala-2.11</id>
-                    <activation>
-                        <property><name>scala-2.11</name></property>
-                    </activation>
-                    <properties>
-                        <scala.version>2.11.7</scala.version>
-                        <scala.binary.version>2.11</scala.binary.version>
-                    </properties>
-                </profile>
-                -->
     </profiles>
 
 </project>

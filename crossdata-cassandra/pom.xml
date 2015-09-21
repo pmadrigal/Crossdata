@@ -37,31 +37,8 @@
         </license>
     </licenses>
 
-    <developers>
-        <developer>
-            <id>miguel0afd</id>
-            <name>Miguel Angel Fernandez</name>
-            <email>mafernandez at stratio dot com</email>
-        </developer>
-        <developer>
-            <id>jjlopez</id>
-            <name>Juanjo Lopez</name>
-            <email>jjlopez at stratio dot com</email>
-        </developer>
-        <developer>
-            <id>darroyo</id>
-            <name>David Arroyo</name>
-            <email>darroyo at stratio dot com</email>
-        </developer>
-        <developer>
-            <id>lcisneros</id>
-            <name>Luis Cisneros</name>
-            <email>lcisneros at stratio dot com</email>
-        </developer>
-    </developers>
-
     <properties>
-        <cassandra.connector.version>1.4.0-M1</cassandra.connector.version>
+        <cassandra.connector.version>1.4.0-M3</cassandra.connector.version>
     </properties>
 
     <!--TODO exclude spark dependencies from crossdata-ng-->
@@ -69,36 +46,26 @@
         <dependency>
             <groupId>com.stratio.crossdata</groupId>
             <artifactId>crossdata-ng</artifactId>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>com.datastax.spark</groupId>
             <artifactId>spark-cassandra-connector_${scala.binary.version}</artifactId>
             <version>${cassandra.connector.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.stratio.crossdata</groupId>
+            <artifactId>crossdata-ng</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <profiles>
         <profile>
-            <id>crossdata-cassandra</id>
-            <activation>
-                <property>
-                    <name>crossdata-cassandra</name>
-                </property>
-            </activation>
-            <dependencies>
-                <dependency>
-                    <groupId>com.stratio.crossdata</groupId>
-                    <artifactId>crossdata-ng</artifactId>
-                    <scope>provided</scope>
-                </dependency>
-                <dependency>
-                    <groupId>com.datastax.spark</groupId>
-                    <artifactId>spark-cassandra-connector_${scala.binary.version}</artifactId>
-                    <version>${cassandra.connector.version}</version>
-                </dependency>
-            </dependencies>
+            <id>crossdata-all</id>
             <build>
-
                 <plugins>
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
@@ -108,7 +75,6 @@
                             <descriptorRefs>
                                 <descriptorRef>jar-with-dependencies</descriptorRef>
                             </descriptorRefs>
-
                             <appendAssemblyId>false</appendAssemblyId>
                         </configuration>
                         <executions>
@@ -121,12 +87,10 @@
                             </execution>
                         </executions>
                     </plugin>
-
                 </plugins>
             </build>
         </profile>
     </profiles>
-
 
 </project>
 

@@ -37,29 +37,6 @@
         </license>
     </licenses>
 
-    <developers>
-        <developer>
-            <id>miguel0afd</id>
-            <name>Miguel Angel Fernandez</name>
-            <email>mafernandez at stratio dot com</email>
-        </developer>
-        <developer>
-            <id>jjlopez</id>
-            <name>Juanjo Lopez</name>
-            <email>jjlopez at stratio dot com</email>
-        </developer>
-        <developer>
-            <id>darroyo</id>
-            <name>David Arroyo</name>
-            <email>darroyo at stratio dot com</email>
-        </developer>
-        <developer>
-            <id>lcisneros</id>
-            <name>Luis Cisneros</name>
-            <email>lcisneros at stratio dot com</email>
-        </developer>
-    </developers>
-
     <dependencies>
         <dependency>
             <groupId>org.apache.spark</groupId>
@@ -78,7 +55,29 @@
             <groupId>com.stratio.crossdata</groupId>
             <artifactId>crossdata-ng</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.stratio.crossdata</groupId>
+            <artifactId>crossdata-ng</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-failsafe-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <configuration>
+                            <argLine>${jacoco-IT-argline} -Xms1024m -Xmx1024m -XX:MaxPermSize=1024m</argLine>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>
 
