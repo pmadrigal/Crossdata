@@ -24,7 +24,7 @@ import akka.actor.{Actor, Props}
 import akka.cluster.Cluster
 import akka.cluster.ClusterEvent._
 import akka.routing.DefaultResizer
-import com.stratio.crossdata.common.{ExecuteQuery, Message}
+import com.stratio.crossdata.common.SQLCommand
 import com.stratio.crossdata.server.config.ServerConfig
 import org.apache.log4j.Logger
 import org.apache.spark.{SparkConf, SparkContext}
@@ -56,7 +56,7 @@ class ServerActor(cluster: Cluster) extends Actor with ServerConfig {
 
   def receive: Receive = {
 
-    case Message(query) => {
+    case SQLCommand(query) => {
       logger.debug("Query received!")
       //val queryAndParams = List(query, sparkContextParameters)
       executorActorRef forward ExecuteQuery(query)

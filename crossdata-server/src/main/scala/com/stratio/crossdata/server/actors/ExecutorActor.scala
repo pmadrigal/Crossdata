@@ -20,10 +20,10 @@ package com.stratio.crossdata.server.actors
 import akka.actor.ActorLogging
 import akka.actor.{Actor, Props}
 import akka.cluster.Cluster
-import com.stratio.crossdata.common.ExecuteQuery
-
 import org.apache.log4j.Logger
 import org.apache.spark.sql.crossdata.XDContext
+
+case class ExecuteQuery(query:String)
 
 object ExecutorActor {
   def props(cluster: Cluster, xDContext: XDContext): Props = Props(new ExecutorActor(cluster, xDContext))
