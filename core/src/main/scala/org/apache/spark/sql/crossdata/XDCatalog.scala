@@ -186,7 +186,6 @@ object XDCatalog{
 
   implicit def asXDCatalog(catalog: Catalog): XDCatalog = catalog.asInstanceOf[XDCatalog]
 
-
   def getUserSpecifiedSchema(schemaJSON: String): Option[StructType] = {
     implicit val formats = DefaultFormats
 
