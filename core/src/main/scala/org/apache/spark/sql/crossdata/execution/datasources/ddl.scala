@@ -15,8 +15,11 @@
  */
 package org.apache.spark.sql.crossdata.execution.datasources
 
+import java.util.UUID
+
 import com.stratio.crossdata.connector.TableInventory
 import org.apache.spark.Logging
+import org.apache.spark.launcher.SparkLauncher
 
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.Attribute
@@ -90,7 +93,6 @@ private[crossdata] case class DropTable(tableIdentifier: TableIdentifier)
   extends LogicalPlan with RunnableCommand {
 
   override def run(sqlContext: SQLContext): Seq[Row] = {
-
     sqlContext.catalog.dropTable(tableIdentifier.toSeq)
     Seq.empty
   }
@@ -123,12 +125,28 @@ private[crossdata] case class CreateEphemeralTable(
 
   override def run(sqlContext: SQLContext): Seq[Row] = {
     throw new AnalysisException("Ephemeral tables are not supported yet")
+
+    val uuid = UUID.randomUUID().toString
+
+    // TODO: Blocked by CROSSDATA-148 y CROSSDATA-205
     // * This query will trigger 3 actions in the catalog persistence:
     //   1.- Associate the table with the schema.
     //   2.- Associate the table with the configuration.
     //   3.- Associate the QueryID with the involved query.
+
     // * SparkLauncher of StreamingProcess
-    Seq.empty
+    val params = (uuid :: opts.values :: Nil).toArray[String]
+    val sparkApp = new SparkLauncher()
+      .setAppName(uuid)
+      .setMaster(sqlContext.conf.getConfString("spark.master"))
+      .setAppResource("streamingProcess.jar")
+      .setMainClass("StreamingProcess")
+      .setDeployMode("cluster")
+      .addAppArgs(params:_*)
+      .launch()
+
+    // * Return the UUID of the process
+    Seq(Row(uuid))
   }
 }
 
