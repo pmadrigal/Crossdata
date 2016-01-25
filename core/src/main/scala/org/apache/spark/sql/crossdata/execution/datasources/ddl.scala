@@ -17,6 +17,7 @@ package org.apache.spark.sql.crossdata.execution.datasources
 
 import java.util.UUID
 
+import com.stratio.common.utils.components.config.impl.TypesafeConfigComponent
 import com.stratio.crossdata.connector.TableInventory
 import org.apache.spark.Logging
 import org.apache.spark.launcher.SparkLauncher
@@ -25,6 +26,10 @@ import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.expressions.Attribute
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan
 import org.apache.spark.sql.crossdata.catalog.XDCatalog
+import org.apache.spark.sql.crossdata.config.CoreConfig
+import org.apache.spark.sql.crossdata.daos.{EphemeralTableDAOComponent, TableDAOComponent}
+import org.apache.spark.sql.crossdata.daos.DAOConstants._
+import org.apache.spark.sql.crossdata.models._
 import org.apache.spark.sql.execution.RunnableCommand
 import org.apache.spark.sql.execution.datasources.{ResolvedDataSource, LogicalRelation}
 import org.apache.spark.sql.sources.RelationProvider
@@ -34,7 +39,10 @@ import org.apache.spark.sql.{AnalysisException, Row, SQLContext}
 
 import XDCatalog._
 
-import scala.util.parsing.json.{JSONObject, JSON}
+import scala.util.parsing.json.{JSONFormat, JSONObject, JSON}
+
+import org.apache.spark.sql.crossdata.config._
+
 
 
 private [crossdata] case class ImportTablesUsingWithOptions(datasource: String, opts: Map[String, String])
@@ -124,26 +132,53 @@ private[crossdata] case class CreateEphemeralTable(
     tableIdent: TableIdentifier,
     columns: StructType,
     opts: Map[String, String])
-  extends LogicalPlan with RunnableCommand {
+  extends LogicalPlan with RunnableCommand with EphemeralTableDAOComponent {
+
+  override val config: Config = new TypesafeConfig(None ,None , Some(CoreConfig.CoreBasicConfig), Some(CoreConfig.ParentConfigName + "." +CoreConfig.StreamingConfigKey))
+
+  override val output: Seq[Attribute] = {
+    val schema = StructType(
+      Seq(StructField("EphemeralTableID", StringType, false))
+    )
+    schema.toAttributes
+  }
+
 
   override def run(sqlContext: SQLContext): Seq[Row] = {
-    throw new AnalysisException("Ephemeral tables are not supported yet")
+   // throw new AnalysisException("Ephemeral tables are not supported yet")
 
-    val uuid = UUID.randomUUID().toString
+    val tableId = createId
+    //val kafkaConnection = config.getString("kafka.connection").get.split(",").map(_.split(":"))
 
+    val kafkaConnection = config.getString("kafka.connectionString").get.split(":")
+    val kafkaHost = kafkaConnection(0)
+    val kafkaPort = kafkaConnection(1)
+
+    //TODO read from configuration
+    val topics= Seq(TopicModel(config.getString("kafka.topicName").get))
+    val connections = Seq(ConnectionHostModel(kafkaHost,kafkaPort))
+    val kafkaOptions = KafkaOptionsModel(connections, topics)
+    val ephemeralOptions = EphemeralOptionsModel(kafkaOptions)
+
+    dao.create(tableId,
+      EphemeralTableModel(tableId,
+        tableIdent.table,
+        Some(ephemeralOptions)))
+
+/*
     // TODO: Blocked by CROSSDATA-148 and CROSSDATA-205
     // * This query will trigger 3 actions in the catalog persistence:
     //   1.- Associate the table with the schema.
     val schema = columns.json
     //   2.- Associate the table with the configuration.
-    val options = JSONObject(opts).toString
+    val options = JSONObject(opts).toString(JSONFormat.defaultFormatter)
     //   3.- Associate the QueryID with the involved table.
 
 
     // * SparkLauncher of StreamingProcess
-    val params = (uuid :: opts.values :: Nil).toArray[String]
+    val params = tableId :: opts.values.toList
     val sparkApp = new SparkLauncher()
-      .setAppName(uuid)
+      .setAppName(tableId)
       .setMaster(sqlContext.conf.getConfString("spark.master"))
       .setAppResource("streamingProcess.jar")
       .setMainClass("StreamingProcess")
@@ -152,7 +187,8 @@ private[crossdata] case class CreateEphemeralTable(
       .launch()
 
     // * Return the UUID of the process
-    Seq(Row(uuid))
+*/
+    Seq(Row(tableId))
   }
 }
 
