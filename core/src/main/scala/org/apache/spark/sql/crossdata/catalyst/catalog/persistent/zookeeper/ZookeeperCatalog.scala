@@ -1,35 +1,43 @@
 package org.apache.spark.sql.crossdata.catalyst.catalog.persistent.zookeeper
 
 import java.io.IOException
-import java.util.Properties
 
 import com.stratio.common.utils.components.dao.GenericDAOComponent
 import com.stratio.common.utils.components.logger.impl.SparkLoggerComponent
-import com.typesafe.config.{Config, ConfigFactory}
-import org.apache.hadoop.conf.Configuration
+import com.typesafe.config.Config
 import org.apache.hadoop.fs.Path
-import org.apache.spark.{SparkConf, SparkException}
+import org.apache.spark.SparkException
 import org.apache.spark.sql.catalyst.TableIdentifier
 import org.apache.spark.sql.catalyst.analysis.{DatabaseAlreadyExistsException, NoSuchDatabaseException, NoSuchPartitionException, NoSuchPartitionsException, NoSuchTableException, PartitionAlreadyExistsException, PartitionsAlreadyExistException, TableAlreadyExistsException}
 import org.apache.spark.sql.catalyst.catalog.CatalogTypes.TablePartitionSpec
 import org.apache.spark.sql.catalyst.catalog.ExternalCatalogUtils.escapePathName
 import org.apache.spark.sql.catalyst.catalog._
 import org.apache.spark.sql.catalyst.expressions.Expression
+import org.apache.spark.sql.crossdata.catalyst.catalog.persistent.XDExternalCatalog
+import org.apache.spark.sql.crossdata.catalyst.catalog.persistent.XDExternalCatalog.TypesafeConfigSettings
 import org.apache.spark.sql.crossdata.catalyst.catalog.persistent.models.{CatalogEntityModel, DatabaseModel, PartitionModel, TableModel}
 import org.apache.spark.sql.crossdata.catalyst.catalog.persistent.zookeeper.daos.{DatabaseDAO, PartitionDAO, TableDAO}
+import org.apache.hadoop.conf.Configuration
 
 import scala.util.{Failure, Try}
 
 
-class ZookeeperCatalog(conf: SparkConf, hadoopConf: Configuration) extends ExternalCatalog {
+class ZookeeperCatalog(settings: TypesafeConfigSettings)
+  extends XDExternalCatalog[TypesafeConfigSettings](settings) {
+
+  import settings.config
+
+  //TODO A hadoop config is needed to deal with partitions. Should we get this config here from settings?
+//  lazy val hadoopTypesafeConf: Config = settings.config.getConfig("hadoop")
+  lazy val hadoopConf = new Configuration()
 
 
   // TODO we need a Catalog Config
 //  protected[crossdata] lazy val config: Config = ??? //XDSharedState.catalogConfig
 
-  val defaultProperties = new Properties()
+  /*val defaultProperties = new Properties()
   defaultProperties.setProperty("zookeeper.connectionString" , "127.0.0.1:2181")
-  protected[crossdata] lazy val config: Config = ConfigFactory.parseProperties(defaultProperties)
+  protected[crossdata] lazy val config: Config = ConfigFactory.parseProperties(defaultProperties)*/
 
   trait DaoContainer[M <: CatalogEntityModel] {
     val daoComponent: GenericDAOComponent[M] with SparkLoggerComponent
@@ -120,9 +128,6 @@ class ZookeeperCatalog(conf: SparkConf, hadoopConf: Configuration) extends Exter
     listCatalogEntities[DatabaseModel].flatMap(db => getDBNameWithPattern(db, pattern))
 
   override def setCurrentDatabase(db: String): Unit = { /* no-op */ }
-
-  // TODO TableIdentifier.database doesn't make sense as option
-  // TODO should DAO check db and table in its operations? tableEntity = db.table? force to specify db?
 
   override def createTable(tableDefinition: CatalogTable, ignoreIfExists: Boolean): Unit = {
     val dao = tableAndViewDAOContainer.daoComponent.dao
