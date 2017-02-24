@@ -4,7 +4,6 @@ import java.io.IOException
 
 import com.stratio.common.utils.components.dao.GenericDAOComponent
 import com.stratio.common.utils.components.logger.impl.SparkLoggerComponent
-import com.typesafe.config.Config
 import org.apache.hadoop.fs.Path
 import org.apache.spark.SparkException
 import org.apache.spark.sql.catalyst.TableIdentifier
@@ -293,7 +292,6 @@ class ZookeeperCatalog(settings: TypesafeConfigSettings)
     }
   }
 
-  //TODO review existingPart in this method
   override def renamePartitions(db: String, table: String, specs: Seq[TablePartitionSpec], newSpecs: Seq[TablePartitionSpec]): Unit = {
     require(specs.size == newSpecs.size, "number of old and new partition specs differ")
     requirePartitionsExist(db, table, specs)
