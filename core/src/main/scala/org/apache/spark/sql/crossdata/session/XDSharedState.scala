@@ -25,40 +25,40 @@ import org.apache.spark.sql.internal.StaticSQLConf.CATALOG_IMPLEMENTATION
 
 import org.apache.spark.sql.crossdata.utils.Reflect._
 
-class XDSharedState(
-                     sparkContext: SparkContext,
-                     userCoreConfig: Option[Config] = None
-                     //val sqlConf: SQLConf,
-                     //val externalCatalog: XDCatalogCommon,
-                     //val streamingCatalog: Option[XDStreamingCatalog],
-                     //@transient val securityManager: Option[CrossdataSecurityManager]
-                   ) extends {
+class XDSharedState(sparkContext: SparkContext, catalogConfig: Config) extends {
+
+  override val externalCatalog: ExternalCatalog = XDSharedState.instantiateCatalog(sparkContext, catalogConfig)
+
+} with SharedState(sparkContext)
 
 
-  //TODO: Change catalog config origin and path
-  override val externalCatalog: ExternalCatalog = {
-    for (config <- userCoreConfig; key = "catalog.class"; if config.hasPath(key)) yield {
+object XDSharedState {
+
+  private[crossdata] def instantiateCatalog(sparkContext: SparkContext, catalogConfig: Config ): ExternalCatalog = {
+
+    val classKey: String = "class"
+
+    if (catalogConfig.hasPath(classKey))
       reflect[ExternalCatalog, ExternalCatalogSettings](
-        config.getString(key), //TODO: Change catalog config origin and path
-        TypesafeConfigSettings(config.getConfig("catalog")) //TODO: Change catalog config origin and path
+        catalogConfig.getString(classKey),
+        TypesafeConfigSettings(catalogConfig)
       )
-    }
-  } getOrElse {
-    // Fallback to SPARK's default behaviour
+    else { // Fallback to SPARK's default behaviour
 
-    val HIVE_EXTERNAL_CATALOG_CLASS_NAME = "org.apache.spark.sql.hive.HiveExternalCatalog"
+      val HIVE_EXTERNAL_CATALOG_CLASS_NAME = "org.apache.spark.sql.hive.HiveExternalCatalog"
 
-    def externalCatalogClassName(conf: SparkConf): String = {
-      conf.get(CATALOG_IMPLEMENTATION) match {
+      val externalCatalogClassName: String = sparkContext.conf.get(CATALOG_IMPLEMENTATION) match {
         case "hive" => HIVE_EXTERNAL_CATALOG_CLASS_NAME
         case "in-memory" => classOf[InMemoryCatalog].getCanonicalName
       }
+
+      reflect[ExternalCatalog, SparkConf, Configuration](
+        externalCatalogClassName,
+        sparkContext.conf,
+        sparkContext.hadoopConfiguration)
+
     }
 
-    reflect[ExternalCatalog, SparkConf, Configuration](
-      externalCatalogClassName(sparkContext.conf),
-      sparkContext.conf,
-      sparkContext.hadoopConfiguration)
   }
 
-} with SharedState(sparkContext)
+}
